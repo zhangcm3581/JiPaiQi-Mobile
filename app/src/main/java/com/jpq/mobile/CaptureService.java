@@ -22,6 +22,7 @@ public final class CaptureService extends Service {
     public volatile String status="正在启动";
     public volatile boolean automatic=true;
     public volatile long frameMillis;
+    public volatile String handStatus="未配置手牌模板";private final HandSnapshots handSnapshots=new HandSnapshots();private HandUpload handUpload;
     private Image pendingImage;private Vision vision;private MediaProjection projection;private VirtualDisplay display;private ImageReader reader;
     private HandlerThread thread;private Handler worker;private final Handler main=new Handler(Looper.getMainLooper());
     private boolean dockBottomRight=true;
@@ -50,7 +51,7 @@ public final class CaptureService extends Service {
             if(projection==null)throw new IllegalStateException("屏幕授权失效");
             projection.registerCallback(new MediaProjection.Callback(){@Override public void onStop(){stopSelf();}@Override public void onCapturedContentResize(int w,int h){if(worker!=null)worker.post(()->resize(w,h));}},main);
             worker.post(()->{try{
-                pack=Pack.current(this);vision=new Vision(pack);
+                pack=Pack.current(this);vision=new Vision(pack);var uploadPrefs=getSharedPreferences("hand_upload",0);if(uploadPrefs.getBoolean("enabled",false))handUpload=new HandUpload(uploadPrefs.getString("endpoint",""));
                 ledger=new Ledger(pack.deck,pack.hands,pack.guard.getLong("settlement_hold_ms"),pack.guard.getLong("restart_clear_ms"),pack.timing.getLong("empty_hold_ms"),pack.timing.getInt("confirm_samples"),pack.guard.getInt("restart_confirm_samples"));
                 android.content.SharedPreferences p=getSharedPreferences("capture",0);viewport=new double[]{p.getFloat("x",0),p.getFloat("y",0),p.getFloat("w",1),p.getFloat("h",1)};
                 DisplayMetrics metrics=new DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(metrics);resize(metrics.widthPixels,metrics.heightPixels);
@@ -61,7 +62,7 @@ public final class CaptureService extends Service {
     }
     private void resize(int w,int h){
         if(closing||projection==null||vision==null||w<1||h<1||(w==captureW&&h==captureH&&reader!=null))return;
-        try{if(ledger!=null&&captureW!=0){ledger.interrupt();hadGap=true;}worker.removeCallbacks(captureTick);cachedFrame=null;if(pendingImage!=null){pendingImage.close();pendingImage=null;}if(reader!=null){reader.close();reader=null;}captureW=w;captureH=h;
+        try{if(ledger!=null&&captureW!=0){ledger.interrupt();hadGap=true;}worker.removeCallbacks(captureTick);cachedFrame=null;handSnapshots.reset();if(pendingImage!=null){pendingImage.close();pendingImage=null;}if(reader!=null){reader.close();reader=null;}captureW=w;captureH=h;
             reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,3);
             reader.setOnImageAvailableListener(r->{if(closing)return;try{if(pendingImage!=null){pendingImage.close();pendingImage=null;}pendingImage=r.acquireLatestImage();}catch(IllegalStateException ignored){}},worker);
             int density=getResources().getDisplayMetrics().densityDpi;
@@ -88,13 +89,21 @@ public final class CaptureService extends Service {
     private void evaluate(Vision.Frame f,long now){
         List<Ledger.Observation> observations=new ArrayList<>();
         for(Vision.Reading r:f.cards)observations.add(new Ledger.Observation(r.key,r.seat,r.name,r.ranks(),r.ambiguous||!r.unresolved.isEmpty()));
-        int before=ledger.round;ledger.frame(now,f.start,f.end,observations);if(ledger.round!=before)hadGap=false;
+        int before=ledger.round;ledger.frame(now,f.start,f.end,observations);
+        if(ledger.round!=before){hadGap=false;handSnapshots.reset();}
+        if(f.end||ledger.phase==Ledger.Phase.ENDED){handSnapshots.reset();handStatus="本局结束，停止手牌上传";}
+        else for(Vision.Reading hand:f.hands){
+            try{JSONObject snapshot=handSnapshots.observe(hand.key,hand.ranks(),pack.timing.getInt("confirm_samples"),pack.json.getJSONObject("package").getString("id"));
+                handStatus=hand.ranks().isEmpty()?"未识别到手牌":String.join(" ",hand.ranks());
+                if(snapshot!=null&&handUpload!=null)handUpload.submit(snapshot);
+            }catch(JSONException e){handStatus="手牌格式错误";}
+        }
         status=switch(ledger.phase){case WAITING->"等待开局 · 请在发牌前开启";case PLAYING->"第 "+ledger.round+" 局 · "+(hadGap?"曾中断，余量可能不完整":"整副牌未出余量");case ENDED->"本局结束 · 已锁定";};
         if(ledger.reviews()>0)status+=" · "+ledger.reviews()+" 项待核对";
         if(observations.stream().anyMatch(o->o.uncertain))status+=" · 牌行有疑问";
         if(now-lastPersist>3000||f.end){persist();lastPersist=now;}
     }
-    private void gap(String reason){cachedFrame=null;if(!hadGap&&ledger!=null)ledger.interrupt();hadGap=true;status=reason;}
+    private void gap(String reason){cachedFrame=null;handSnapshots.reset();handStatus="采集暂停，手牌结果无效";if(!hadGap&&ledger!=null)ledger.interrupt();hadGap=true;status=reason;}
     private boolean overlaps(){
         if(pack==null||strip==null)return false;android.graphics.Rect b=overlayBounds;
         double w=captureW*viewport[2],h=captureH*viewport[3],scale=Math.min(w/pack.content[2],h/pack.content[3]);double ox=captureW*viewport[0]+(w-scale*pack.content[2])/2,oy=captureH*viewport[1]+(h-scale*pack.content[3])/2;
@@ -118,11 +127,11 @@ public final class CaptureService extends Service {
     private void clampOverlay(){if(strip==null)return;DisplayMetrics m=new DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(m);params.width=Math.round(m.widthPixels*strip.style.width);params.height=Math.round(params.width/6.5f);if(dockBottomRight){params.x=m.widthPixels-params.width-4;params.y=m.heightPixels-params.height-4;}params.x=Math.max(0,Math.min(params.x,m.widthPixels-params.width));params.y=Math.max(0,Math.min(params.y,m.heightPixels-params.height));overlayBounds=new android.graphics.Rect(params.x,params.y,params.x+params.width,params.y+params.height);}
     public void refreshAppearance(){main.post(()->{if(strip!=null){strip.style.load(this);params.alpha=strip.style.opacity;clampOverlay();windows.updateViewLayout(strip,params);strip.invalidate();}});}
     private void updateStrip(){if(strip!=null&&ledger!=null)strip.data(pack.order,ledger.remaining(),automatic,ledger.phase==Ledger.Phase.WAITING,ledger.reviews());}
-    public void toggle(){automatic=!automatic;worker.post(()->{cachedFrame=null;if(ledger!=null)ledger.interrupt();hadGap=true;status=automatic?"继续识别 · 当前局可能不完整":"已暂停";persist();});updateStrip();}
+    public void toggle(){automatic=!automatic;worker.post(()->{cachedFrame=null;handSnapshots.reset();if(ledger!=null)ledger.interrupt();hadGap=true;status=automatic?"继续识别 · 当前局可能不完整":"已暂停";persist();});updateStrip();}
     public void command(String action,long id){worker.post(()->{if(ledger==null)return;switch(action){case "confirm"->ledger.confirm(id);case "dismiss"->ledger.dismiss(id);case "undo"->ledger.undo();case "new"->{ledger.newRound();hadGap=false;}}persist();});}
-    public JSONObject report(){JSONObject out=new JSONObject();try{out.put("format","jpq.mobile-session/1");out.put("status",status);out.put("package_id",pack==null?"":pack.json.getJSONObject("package").getString("id"));out.put("package_version",pack==null?"":pack.json.getJSONObject("package").getString("version"));JSONArray entries=new JSONArray();if(ledger!=null)synchronized(ledger){out.put("round",ledger.round);out.put("remaining",new JSONObject(ledger.remaining()));for(Ledger.Event e:ledger.history())entries.put(new JSONObject().put("id",e.id).put("round",e.round).put("seat",e.seat).put("name",e.name).put("cards",new JSONArray(e.cards)).put("time_elapsed_ms",e.time).put("status",e.status.name()).put("reason",e.reason));}out.put("events",entries);}catch(JSONException ignored){}return out;}
+    public JSONObject report(){JSONObject out=new JSONObject();try{out.put("format","jpq.mobile-session/1");out.put("status",status);out.put("hand_status",handStatus);out.put("upload_status",handUpload==null?"未启用上传":handUpload.status);out.put("package_id",pack==null?"":pack.json.getJSONObject("package").getString("id"));out.put("package_version",pack==null?"":pack.json.getJSONObject("package").getString("version"));JSONArray entries=new JSONArray();if(ledger!=null)synchronized(ledger){out.put("round",ledger.round);out.put("remaining",new JSONObject(ledger.remaining()));for(Ledger.Event e:ledger.history())entries.put(new JSONObject().put("id",e.id).put("round",e.round).put("seat",e.seat).put("name",e.name).put("cards",new JSONArray(e.cards)).put("time_elapsed_ms",e.time).put("status",e.status.name()).put("reason",e.reason));}out.put("events",entries);}catch(JSONException ignored){}return out;}
     private void persist(){try{File tmp=new File(getFilesDir(),"session.tmp"),dest=new File(getFilesDir(),"session.json");try(Writer w=new OutputStreamWriter(new FileOutputStream(tmp),java.nio.charset.StandardCharsets.UTF_8)){w.write(report().toString(2));}java.nio.file.Files.move(tmp.toPath(),dest.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}catch(Exception ignored){}}
     private void fatal(Exception e){status=e.getMessage();getSharedPreferences("capture",0).edit().putString("last_error",status).apply();main.post(()->{android.widget.Toast.makeText(this,status,android.widget.Toast.LENGTH_LONG).show();stopSelf();});}
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);DisplayMetrics m=new DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(m);worker.post(()->resize(m.widthPixels,m.heightPixels));}
-    @Override public void onDestroy(){closing=true;current=null;main.removeCallbacks(ticker);if(strip!=null){windows.removeView(strip);strip=null;}worker.removeCallbacks(captureTick);worker.post(()->{if(ledger!=null){ledger.interrupt();persist();}if(display!=null)display.release();if(pendingImage!=null){pendingImage.close();pendingImage=null;}if(reader!=null)reader.close();if(vision!=null)vision.close();if(projection!=null){projection.stop();projection=null;}thread.quitSafely();});stopForeground(true);super.onDestroy();}
+    @Override public void onDestroy(){closing=true;if(handUpload!=null)handUpload.close();current=null;main.removeCallbacks(ticker);if(strip!=null){windows.removeView(strip);strip=null;}worker.removeCallbacks(captureTick);worker.post(()->{if(ledger!=null){ledger.interrupt();persist();}if(display!=null)display.release();if(pendingImage!=null){pendingImage.close();pendingImage=null;}if(reader!=null)reader.close();if(vision!=null)vision.close();if(projection!=null){projection.stop();projection=null;}thread.quitSafely();});stopForeground(true);super.onDestroy();}
 }

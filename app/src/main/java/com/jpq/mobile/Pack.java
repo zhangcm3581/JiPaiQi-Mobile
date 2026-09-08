@@ -21,7 +21,7 @@ public final class Pack {
     public final List<String> order=new ArrayList<>();
     public final String name;
     public final JSONObject timing,guard,rows;
-    private static final Set<String> CAPABILITIES=Set.of("cards.row_ownership.v1","color.base_and_any_ink.v1","color.selected.v2","recognition.round_guard.v1","recognition.timing.v1","state.priority.v1","template.ccoeff_normed.v1");
+    private static final Set<String> CAPABILITIES=Set.of("cards.hand_identity.v1","cards.row_ownership.v1","color.base_and_any_ink.v1","color.selected.v2","recognition.round_guard.v1","recognition.timing.v1","state.priority.v1","template.ccoeff_normed.v1");
 
     public Pack(File dir) throws Exception {
         folder=dir;
@@ -54,7 +54,7 @@ public final class Pack {
             File image=safeFile(dir,res.getString("file"));require(image.isFile()&&image.length()<8_000_000,"模板文件缺失或过大");
             BitmapFactory.Options opts=new BitmapFactory.Options();opts.inJustDecodeBounds=true;BitmapFactory.decodeFile(image.toString(),opts);
             require(opts.outWidth>1&&opts.outHeight>1&&opts.outWidth<=2048&&opts.outHeight<=2048,"模板图片无效");
-            JSONObject sem=res.getJSONObject("semantic");if(sem.optString("role").equals("played"))require(deck.containsKey(sem.optString("rank")),"模板牌点不在牌库中");
+            JSONObject sem=res.getJSONObject("semantic");if(sem.optString("role").equals("hand")){require(sem.optString("group").equals("me")&&Set.of("spades","hearts","clubs","diamonds").contains(sem.optString("suit"))&&deck.containsKey(sem.optString("rank")),"手牌模板缺少点数或花色");}if(sem.optString("role").equals("played"))require(deck.containsKey(sem.optString("rank")),"模板牌点不在牌库中");
         }
         for(JSONObject d:detectors.values()){
             String type=d.getString("type");require(CAPABILITIES.contains(type),"检测器不支持");JSONObject params=d.getJSONObject("params");
@@ -72,7 +72,7 @@ public final class Pack {
         }
         JSONArray states=json.getJSONArray("states");boolean hasEnd=false,hasStart=false;
         for(int i=0;i<states.length();i++){JSONObject s=states.getJSONObject(i);require(s.getString("combine").equals("any"),"状态组合不支持");String purpose=s.getString("purpose");hasEnd|=purpose.equals("round_end");hasStart|=purpose.equals("new_round_candidate");JSONArray ids=s.getJSONArray("detector_ids");require(ids.length()>0,"空状态特征");for(int j=0;j<ids.length();j++)require(detectors.containsKey(ids.getString(j)),"状态检测器不存在");}
-        require(hasEnd&&hasStart,"自动记牌需要开局和结束特征");
+        require((hasEnd&&hasStart)||(regions.values().stream().noneMatch(r->r.optJSONObject("semantic").optString("role").equals("played"))&&regions.values().stream().anyMatch(r->r.optJSONObject("semantic").optString("role").equals("hand"))),"自动记牌需要开局和结束特征");
         require(json.getJSONObject("state_resolution").getString("type").equals("state.priority.v1"),"状态优先级不支持");
         timing=json.getJSONObject("recognition_timing");guard=json.getJSONObject("round_guard");
         require(timing.getString("type").equals("recognition.timing.v1")&&guard.getString("type").equals("recognition.round_guard.v1"),"识别规则版本不支持");

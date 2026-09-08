@@ -19,7 +19,7 @@ public final class Vision implements AutoCloseable {
         public List<String> ranks(){List<String> a=new ArrayList<>();for(Hit h:hits)a.add(h.rank);return a;}
     }
     public static final class Frame {
-        public final List<Reading> cards=new ArrayList<>();public boolean start,end;public final List<String> features=new ArrayList<>();
+        public final List<Reading> hands=new ArrayList<>();public final List<Reading> cards=new ArrayList<>();public boolean start,end;public final List<String> features=new ArrayList<>();
     }
     private final Pack pack;
     private final Map<String,Mat> targets=new HashMap<>();
@@ -54,15 +54,16 @@ public final class Vision implements AutoCloseable {
         // End and start both evaluated to preserve the raw start edge for the end latch.
         for(int i=0;i<states.length();i++){JSONObject s=states.getJSONObject(i);boolean hit=false;JSONArray ids=s.getJSONArray("detector_ids");for(int j=0;j<ids.length();j++){String id=ids.getString(j);if(!found.containsKey(id))found.put(id,detectState(image,pack.detectors.get(id)));hit|=found.get(id);}if(hit){frame.features.add(s.getString("name"));if(s.getString("purpose").equals("round_end"))frame.end=true;if(s.getString("purpose").equals("new_round_candidate"))frame.start=true;}}
         for(JSONObject r:pack.regions.values()){
-            JSONObject sem=r.getJSONObject("semantic");if(!sem.optString("role").equals("played"))continue;
+            JSONObject sem=r.getJSONObject("semantic");boolean hand=sem.optString("role").equals("hand")&&sem.optString("group").equals("me");if(!hand&&!sem.optString("role").equals("played"))continue;
             Reading reading=new Reading();reading.key=r.getString("id");reading.name=r.getString("name");reading.seat=sem.getString("seat_id");Rect area=rect(r.getJSONArray("rect"));
             for(JSONObject d:pack.detectors.values())if(d.getString("type").equals("template.ccoeff_normed.v1")){
                 JSONObject res=pack.resources.get(d.getString("resource_id")),rs=res.getJSONObject("semantic");
-                if(!rs.optString("role").equals("played")||!rs.optString("group").equals(sem.optString("group")))continue;
+                if(!rs.optString("role").equals(sem.optString("role"))||!rs.optString("group").equals(sem.optString("group")))continue;
                 if(!rs.isNull("seat_id")&&!rs.optString("seat_id").equals(reading.seat))continue;
-                reading.hits.addAll(match(image,d,area,rs.getString("rank"),100));
+                if(!d.isNull("region_id")&&!d.getString("region_id").equals(r.getString("id")))continue;
+                reading.hits.addAll(match(image,d,area,hand?rs.getString("suit")+":"+rs.getString("rank"):rs.getString("rank"),100));
             }
-            reading.hits.sort(Comparator.comparingDouble((Hit a)->-a.score));List<Hit> clean=new ArrayList<>();for(Hit a:reading.hits)if(clean.stream().noneMatch(b->same(a,b)))clean.add(a);clean.sort(Comparator.comparingInt(a->a.rect.x));reading.hits=clean;frame.cards.add(reading);
+            reading.hits.sort(Comparator.comparingDouble((Hit a)->-a.score));List<Hit> clean=new ArrayList<>();for(Hit a:reading.hits)if(clean.stream().noneMatch(b->same(a,b)))clean.add(a);clean.sort(Comparator.comparingInt(a->a.rect.x));reading.hits=clean;if(hand)frame.hands.add(reading);else frame.cards.add(reading);
         }
         assign(frame.cards);return frame;
     }
