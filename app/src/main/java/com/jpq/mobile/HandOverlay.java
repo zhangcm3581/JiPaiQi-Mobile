@@ -12,7 +12,7 @@ public final class HandOverlay implements AutoCloseable {
     private final Controls controls;private final Grid grid;
     private final WindowManager.LayoutParams menuParams,panelParams;
     private boolean expanded=true,panelVisible=true,running;private boolean closed;
-    private boolean menuDocked=true,panelDocked=true;
+    private boolean menuDocked=true,panelDocked=true,rightDocked=false;
     private final float density;private HandReply reply;private String message="点击启动，等待新局";
     private volatile java.util.List<Rect> bounds=List.of();
     public HandOverlay(Context context,Actions actions){this.context=context;this.actions=actions;wm=(WindowManager)context.getSystemService(Context.WINDOW_SERVICE);density=context.getResources().getDisplayMetrics().density;
@@ -26,19 +26,20 @@ public final class HandOverlay implements AutoCloseable {
     private void size(){DisplayMetrics d=screen();menuParams.width=expanded?Math.min(dp(360),Math.round(d.widthPixels*.30f)):Math.max(dp(48),Math.round(d.widthPixels*.045f));menuParams.height=expanded?Math.round(menuParams.width*.25f):Math.round(menuParams.width*1.2f);
         panelParams.width=Math.min(dp(400),Math.round(d.widthPixels*.27f));panelParams.height=Math.round(panelParams.width*.46f);
         if(menuDocked){menuParams.x=d.widthPixels-menuParams.width;menuParams.y=(d.heightPixels-menuParams.height)/2;}
+        if(!menuDocked&&rightDocked)menuParams.x=d.widthPixels-menuParams.width;
         if(panelDocked){panelParams.x=2;panelParams.y=2;}clamp(menuParams,d);clamp(panelParams,d);
     }
     public void resize(){if(closed)return;size();wm.updateViewLayout(controls,menuParams);if(panelVisible)wm.updateViewLayout(grid,panelParams);updateBounds();}
     public void update(boolean active,HandReply data,String status){if(closed)return;running=active;reply=data;message=status;controls.invalidate();grid.invalidate();}
     public List<Rect> bounds(){return bounds;}
     private void updateBounds(){List<Rect> b=new ArrayList<>();b.add(new Rect(menuParams.x,menuParams.y,menuParams.x+menuParams.width,menuParams.y+menuParams.height));if(panelVisible)b.add(new Rect(panelParams.x,panelParams.y,panelParams.x+panelParams.width,panelParams.y+panelParams.height));bounds=List.copyOf(b);}
-    private void collapse(){expanded=!expanded;menuDocked=false;resize();}
+    private void collapse(){expanded=!expanded;menuDocked=false;rightDocked=true;resize();}
     private void panel(){panelVisible=!panelVisible;if(panelVisible)wm.addView(grid,panelParams);else wm.removeView(grid);updateBounds();}
     private void drag(View view,WindowManager.LayoutParams p,boolean menu){view.setOnTouchListener(new View.OnTouchListener(){float x,y;int px,py;boolean moved;long start;
         public boolean onTouch(View v,MotionEvent e){switch(e.getActionMasked()){
             case MotionEvent.ACTION_DOWN:x=e.getRawX();y=e.getRawY();px=p.x;py=p.y;moved=false;start=android.os.SystemClock.elapsedRealtime();return true;
-            case MotionEvent.ACTION_MOVE:float dx=e.getRawX()-x,dy=e.getRawY()-y;if(Math.abs(dx)+Math.abs(dy)>dp(8))moved=true;if(moved){if(menu)menuDocked=false;else panelDocked=false;p.x=px+(int)dx;p.y=py+(int)dy;clamp(p,screen());wm.updateViewLayout(view,p);updateBounds();}return true;
-            case MotionEvent.ACTION_UP:if(!moved){view.performClick();if(menu){if(!expanded){collapse();return true;}int slot=Math.min(4,(int)(e.getX()*5/view.getWidth()));switch(slot){case 0:actions.toggle();break;case 1:actions.settings();break;case 2:actions.help();break;case 3:actions.exit();break;case 4:if(android.os.SystemClock.elapsedRealtime()-start>500)panel();else collapse();break;}}else panel();}return true;
+            case MotionEvent.ACTION_MOVE:float dx=e.getRawX()-x,dy=e.getRawY()-y;if(Math.abs(dx)+Math.abs(dy)>dp(8))moved=true;if(moved){if(menu){menuDocked=false;rightDocked=false;}else panelDocked=false;p.x=px+(int)dx;p.y=py+(int)dy;clamp(p,screen());wm.updateViewLayout(view,p);updateBounds();}return true;
+            case MotionEvent.ACTION_UP:if(moved&&menu&&!expanded){rightDocked=true;resize();}if(!moved){view.performClick();if(menu){if(!expanded){collapse();return true;}int slot=Math.min(4,(int)(e.getX()*5/view.getWidth()));switch(slot){case 0:actions.toggle();break;case 1:actions.settings();break;case 2:actions.help();break;case 3:actions.exit();break;case 4:if(android.os.SystemClock.elapsedRealtime()-start>500)panel();else collapse();break;}}else panel();}return true;
             default:return true;
         }} });}
     private final class Controls extends View {
