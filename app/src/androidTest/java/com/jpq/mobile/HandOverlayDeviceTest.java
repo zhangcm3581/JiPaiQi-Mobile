@@ -25,5 +25,17 @@ public class HandOverlayDeviceTest {
         }
         finally{inst.runOnMainSync(()->overlay[0].close());device.pressHome();}
     }
+    @Test public void panelFollowsStartPauseAndCannotBeOpenedWhilePaused()throws Exception{
+        var inst=InstrumentationRegistry.getInstrumentation();Context target=inst.getTargetContext();Assume.assumeTrue(Settings.canDrawOverlays(target));UiDevice device=UiDevice.getInstance(inst);
+        HandOverlay[] overlay=new HandOverlay[1];java.util.concurrent.atomic.AtomicBoolean active=new java.util.concurrent.atomic.AtomicBoolean();
+        inst.runOnMainSync(()->overlay[0]=new HandOverlay(target,new HandOverlay.Actions(){public void toggle(){active.set(!active.get());overlay[0].update(active.get(),null,active.get()?"等待新局":"已暂停");}public void settings(){}public void help(){}public void exit(){}}));
+        try{
+            assertEquals("初始仅显示控制栏",1,overlay[0].bounds().size());
+            inst.runOnMainSync(()->{overlay[0].update(false,null,"已暂停");overlay[0].togglePanel();});assertEquals("暂停时不能手动打开面板",1,overlay[0].bounds().size());
+            for(int i=0;i<3;i++){Rect menu=overlay[0].bounds().get(0);device.click(menu.left+menu.width()/10,menu.centerY());SystemClock.sleep(150);assertEquals("启动显示面板",2,overlay[0].bounds().size());device.click(menu.left+menu.width()/10,menu.centerY());SystemClock.sleep(150);assertEquals("暂停隐藏面板",1,overlay[0].bounds().size());}
+            inst.runOnMainSync(()->{overlay[0].update(true,null,"等待新局");overlay[0].togglePanel();overlay[0].update(true,null,"等待新局");});assertEquals("运行时手动隐藏不被刷新撤销",1,overlay[0].bounds().size());
+            inst.runOnMainSync(()->{overlay[0].update(false,null,"已暂停");overlay[0].update(true,null,"等待新局");});assertEquals("重新启动恢复显示",2,overlay[0].bounds().size());
+        }finally{inst.runOnMainSync(()->overlay[0].close());}
+    }
     void save(String name)throws Exception{var inst=InstrumentationRegistry.getInstrumentation();try(var out=new FileOutputStream(new File(inst.getTargetContext().getFilesDir(),name))){Bitmap b=inst.getUiAutomation().takeScreenshot();assertNotNull(b);b.compress(Bitmap.CompressFormat.PNG,100,out);b.recycle();}}
 }

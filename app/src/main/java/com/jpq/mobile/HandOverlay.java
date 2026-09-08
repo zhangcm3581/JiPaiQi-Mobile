@@ -11,13 +11,13 @@ public final class HandOverlay implements AutoCloseable {
     private final Context context;private final WindowManager wm;private final Actions actions;
     private final Controls controls;private final Grid grid;
     private final WindowManager.LayoutParams menuParams,panelParams;
-    private boolean expanded=true,panelVisible=true,running;private boolean closed;
+    private boolean expanded=true,panelVisible=false,running;private boolean closed;
     private boolean menuDocked=true,panelDocked=true,rightDocked=false;
     private final float density;private HandReply reply;private String message="点击启动，等待新局";
     private volatile java.util.List<Rect> bounds=List.of();
     public HandOverlay(Context context,Actions actions){this.context=context;this.actions=actions;wm=(WindowManager)context.getSystemService(Context.WINDOW_SERVICE);density=context.getResources().getDisplayMetrics().density;
         controls=new Controls();grid=new Grid();menuParams=params();panelParams=params();panelParams.flags|=WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
-        size();wm.addView(grid,panelParams);wm.addView(controls,menuParams);drag(controls,menuParams,true);drag(grid,panelParams,false);updateBounds();
+        size();wm.addView(controls,menuParams);drag(controls,menuParams,true);drag(grid,panelParams,false);updateBounds();
     }
     private WindowManager.LayoutParams params(){var p=new WindowManager.LayoutParams(1,1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.gravity=Gravity.TOP|Gravity.LEFT;return p;}
     private int dp(float x){return Math.round(x*density);}
@@ -30,11 +30,12 @@ public final class HandOverlay implements AutoCloseable {
         if(panelDocked){panelParams.x=2;panelParams.y=2;}clamp(menuParams,d);clamp(panelParams,d);
     }
     public void resize(){if(closed)return;size();wm.updateViewLayout(controls,menuParams);if(panelVisible)wm.updateViewLayout(grid,panelParams);updateBounds();}
-    public void update(boolean active,HandReply data,String status){if(closed)return;running=active;reply=data;message=status;controls.invalidate();grid.invalidate();}
+    public void update(boolean active,HandReply data,String status){if(closed)return;if(running!=active){running=active;setPanelVisible(active);}else if(!active)setPanelVisible(false);reply=data;message=status;controls.invalidate();grid.invalidate();}
     public List<Rect> bounds(){return bounds;}
     private void updateBounds(){List<Rect> b=new ArrayList<>();b.add(new Rect(menuParams.x,menuParams.y,menuParams.x+menuParams.width,menuParams.y+menuParams.height));if(panelVisible)b.add(new Rect(panelParams.x,panelParams.y,panelParams.x+panelParams.width,panelParams.y+panelParams.height));bounds=List.copyOf(b);}
     private void collapse(){expanded=!expanded;menuDocked=false;rightDocked=true;resize();}
-    private void panel(){panelVisible=!panelVisible;if(panelVisible)wm.addView(grid,panelParams);else wm.removeView(grid);updateBounds();}
+    private void setPanelVisible(boolean visible){if(closed||panelVisible==visible)return;panelVisible=visible;if(panelVisible)wm.addView(grid,panelParams);else wm.removeView(grid);updateBounds();}
+    private void panel(){if(running)setPanelVisible(!panelVisible);}
     private void drag(View view,WindowManager.LayoutParams p,boolean menu){view.setOnTouchListener(new View.OnTouchListener(){float x,y;int px,py;boolean moved;long start;
         public boolean onTouch(View v,MotionEvent e){switch(e.getActionMasked()){
             case MotionEvent.ACTION_DOWN:x=e.getRawX();y=e.getRawY();px=p.x;py=p.y;moved=false;start=android.os.SystemClock.elapsedRealtime();return true;

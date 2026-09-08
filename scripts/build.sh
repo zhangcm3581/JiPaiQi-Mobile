@@ -6,5 +6,5 @@ if [[ -z "${JAVA_HOME:-}" && -x /usr/libexec/java_home ]]; then
 fi
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 mkdir -p dist
-cp app/build/outputs/apk/debug/app-debug.apk dist/JiPaiQi-Mobile-0.3.2-debug-arm64.apk
-shasum -a 256 dist/JiPaiQi-Mobile-0.3.2-debug-arm64.apk > dist/SHA256SUMS
+cp app/build/outputs/apk/debug/app-debug.apk dist/JiPaiQi-Mobile-0.3.3-debug-arm64.apk
+shasum -a 256 dist/JiPaiQi-Mobile-0.3.3-debug-arm64.apk > dist/SHA256SUMS
