@@ -32,11 +32,11 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(0xFFF8F5EE);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(22),dp(22),dp(22),dp(24));scroll.addView(root);setContentView(scroll);
         root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(22),dp(14)+insets.getSystemWindowInsetTop(),dp(22),dp(20)+insets.getSystemWindowInsetBottom());return insets;});
-        TextView title=text("手牌助手 · v2",30,0xFF302C24);title.setTypeface(null,android.graphics.Typeface.BOLD);root.addView(title);root.addView(text("识别自己的 13 张手牌，查看服务器返回结果",14,0xFF887B67));
+        TextView title=text("十三水助手 · v2",30,0xFF302C24);title.setTypeface(null,android.graphics.Typeface.BOLD);root.addView(title);root.addView(text("两副牌 · 每手 13 张 · 查看服务器返回结果",14,0xFF887B67));
         LinearLayout live=box();live.addView(text("悬浮控制 · 启动 / 设置 / 说明 / 退出",15,0xFF62553F));preview=new CounterStrip(this,appearance);
         live.addView(text("控制栏可收起到屏幕边缘。左上角面板按花色和点数显示服务器结果，点击面板可隐藏。",13,0xFF887B67));
         status=text("正在载入配置…",15,0xFF62553F);live.addView(status);stats=text("",12,0xFF887B67);live.addView(stats);addBox(root,live);
-        LinearLayout config=box();config.addView(text("游戏配置",18,0xFF302C24));packLabel=text("正在检查内置配置包",14,0xFF62553F);config.addView(packLabel);
+        LinearLayout config=box();config.addView(text("游戏配置",18,0xFF302C24));packLabel=text("正在读取识别配置",14,0xFF62553F);config.addView(packLabel);
         config.addView(button("导入新的 ZIP 配置包",this::importPack));config.addView(text("配置来自 JPQ Tools。所有截图仅在本机处理，不上传。",12,0xFF887B67));addBox(root,config);
         LinearLayout controls=box();start=button("开启悬浮控制",this::begin);start.setTextColor(Color.WHITE);start.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFC97832));controls.addView(start);
         stop=button("停止识别",()->stopService(new Intent(this,CaptureService.class)));controls.addView(stop);
@@ -47,7 +47,7 @@ public final class MainActivity extends Activity {
     }
     private void setText(TextView v,String text){if(!v.getText().toString().equals(text))v.setText(text);}
     private void refresh(){if(isDestroyed())return;CaptureService s=CaptureService.current;start.setEnabled(!loading&&pack!=null&&s==null);stop.setEnabled(s!=null);if(pack==null)return;
-        try{setText(packLabel,pack.name+"  ·  "+pack.json.getJSONObject("package").getString("version")+"\n"+pack.hands.size()+" 人 · "+pack.deck.values().stream().mapToInt(Integer::intValue).sum()+" 张牌 · "+pack.resources.size()+" 个模板");}catch(Exception ignored){}
+        try{setText(packLabel,(pack.regions.values().stream().anyMatch(r->r.optJSONObject("semantic").optString("role").equals("hand"))?pack.name:"待导入十三水手牌配置")+"  ·  "+pack.json.getJSONObject("package").getString("version")+"\n"+"十三水 · 2 副牌 / 104 张 · 每手 13 张 · "+pack.resources.size()+" 个模板");}catch(Exception ignored){}
         if(s==null){String error=getSharedPreferences("capture",0).getString("last_error","");setText(status,error.isEmpty()?"准备就绪 · 等待开启":error);setText(stats,"默认采样 "+pack.timing.optInt("sample_interval_ms")+"ms · 结算保护 "+pack.guard.optInt("settlement_hold_ms")/1000f+"s");preview.data(pack.order,pack.deck,true,false,0);}
         else{setText(status,s.automatic?s.handStatus:"已暂停 · 点击悬浮栏启动");setText(stats,s.frameMillis>0?"单帧处理 "+s.frameMillis+"ms · "+(s.automatic?"自动记牌":"已暂停"):"正在连接屏幕采集");if(s.ledger!=null)preview.data(pack.order,s.ledger.remaining(),s.automatic,s.ledger.phase==Ledger.Phase.WAITING,s.ledger.reviews());}
     }

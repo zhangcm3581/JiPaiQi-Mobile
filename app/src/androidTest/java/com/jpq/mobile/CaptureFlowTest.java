@@ -24,9 +24,12 @@ public class CaptureFlowTest {
         UiObject2 consent=device.wait(Until.findObject(By.text("立即开始")),10000);assertNotNull("系统屏幕采集授权弹窗",consent);consent.click();
         try{
             await("前台采集服务启动",()->CaptureService.current!=null&&CaptureService.current.ledger!=null);
+            assertTrue("悬浮控制栏创建完成",device.wait(Until.hasObject(By.descContains("悬浮控制栏")),5000));
             instrumentation.runOnMainSync(()->{CaptureService.current.toggle();CaptureService.current.toggleHandPanel();});
             fixture(target,"overlap");
-            await("实际截图后识别计入 33/QQ",()->CaptureService.current.ledger.remaining().get("3")==2&&CaptureService.current.ledger.remaining().get("Q")==2);
+            await("实际截图确认开局",()->CaptureService.current.ledger.phase==Ledger.Phase.PLAYING);
+            assertEquals("十三水两副牌牌库",104,CaptureService.current.ledger.remaining().values().stream().mapToInt(Integer::intValue).sum());
+            assertEquals("v2 不计入旧出牌观察",0,CaptureService.current.ledger.events.size());
             assertTrue(CaptureService.current.frameMillis>0);
             long before=CaptureService.current.ledger.events.size();Thread.sleep(1600);assertEquals("持续显示不重复入账",before,CaptureService.current.ledger.events.size());
             File out=new File(target.getFilesDir(),"overlay-test.png");try(FileOutputStream stream=new FileOutputStream(out)){instrumentation.getUiAutomation().takeScreenshot().compress(Bitmap.CompressFormat.PNG,100,stream);}

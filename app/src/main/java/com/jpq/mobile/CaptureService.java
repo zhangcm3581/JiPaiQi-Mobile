@@ -53,7 +53,7 @@ public final class CaptureService extends Service {
             projection.registerCallback(new MediaProjection.Callback(){@Override public void onStop(){stopSelf();}@Override public void onCapturedContentResize(int w,int h){if(worker!=null)worker.post(()->resize(w,h));}},main);
             worker.post(()->{try{
                 pack=Pack.current(this);vision=new Vision(pack);var uploadPrefs=getSharedPreferences("hand_upload",0);if(uploadPrefs.getBoolean("enabled",false))handUpload=new HandUpload(uploadPrefs.getString("endpoint",""),reply->worker.post(()->{if(!closing&&automatic&&handResult.accept(reply))panelStatus="服务器结果 · 第 "+reply.round+" 局";}));
-                ledger=new Ledger(pack.deck,pack.hands,pack.guard.getLong("settlement_hold_ms"),pack.guard.getLong("restart_clear_ms"),pack.timing.getLong("empty_hold_ms"),pack.timing.getInt("confirm_samples"),pack.guard.getInt("restart_confirm_samples"));
+                ledger=new Ledger(HandSnapshots.deck(),Map.of("me",13),pack.guard.getLong("settlement_hold_ms"),pack.guard.getLong("restart_clear_ms"),pack.timing.getLong("empty_hold_ms"),pack.timing.getInt("confirm_samples"),pack.guard.getInt("restart_confirm_samples"));
                 android.content.SharedPreferences p=getSharedPreferences("capture",0);viewport=new double[]{p.getFloat("x",0),p.getFloat("y",0),p.getFloat("w",1),p.getFloat("h",1)};
                 DisplayMetrics metrics=new DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(metrics);resize(metrics.widthPixels,metrics.heightPixels);
                 status="等待开局 · 请在发牌前开启";main.post(()->{if(!closing){showOverlay();ticker.run();}});
@@ -89,7 +89,7 @@ public final class CaptureService extends Service {
     }
     private void evaluate(Vision.Frame f,long now){
         List<Ledger.Observation> observations=new ArrayList<>();
-        for(Vision.Reading r:f.cards)observations.add(new Ledger.Observation(r.key,r.seat,r.name,r.ranks(),r.ambiguous||!r.unresolved.isEmpty()));
+        // v2 uses the round gate only. Played cards never change the thirteen-water hand workflow.
         int before=ledger.round;ledger.frame(now,f.start,f.end,observations);
         if(ledger.round!=before){hadGap=false;handSnapshots.beginRound(ledger.round);handResult.begin(ledger.round);if(handUpload!=null)handUpload.cancel();panelStatus="新局 · 等待完整 13 张手牌";}
         if(f.end||ledger.phase==Ledger.Phase.ENDED){handSnapshots.reset();handResult.end();if(handUpload!=null)handUpload.cancel();handStatus="本局结束";panelStatus="等待下一局";}

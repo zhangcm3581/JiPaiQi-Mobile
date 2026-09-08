@@ -23,7 +23,7 @@ public final class HandOverlay implements AutoCloseable {
     private int dp(float x){return Math.round(x*density);}
     private DisplayMetrics screen(){DisplayMetrics d=new DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(d);return d;}
     private void clamp(WindowManager.LayoutParams p,DisplayMetrics d){p.x=Math.max(0,Math.min(p.x,d.widthPixels-p.width));p.y=Math.max(0,Math.min(p.y,d.heightPixels-p.height));}
-    private void size(){DisplayMetrics d=screen();menuParams.width=expanded?Math.min(dp(360),Math.round(d.widthPixels*.30f)):Math.max(24,Math.round(d.widthPixels*.018f));menuParams.height=expanded?Math.round(menuParams.width*.25f):Math.round(menuParams.width*2.4f);
+    private void size(){DisplayMetrics d=screen();menuParams.width=expanded?Math.min(dp(360),Math.round(d.widthPixels*.30f)):Math.max(dp(48),Math.round(d.widthPixels*.045f));menuParams.height=expanded?Math.round(menuParams.width*.25f):Math.round(menuParams.width*1.2f);
         panelParams.width=Math.min(dp(400),Math.round(d.widthPixels*.27f));panelParams.height=Math.round(panelParams.width*.46f);
         if(menuDocked){menuParams.x=d.widthPixels-menuParams.width;menuParams.y=(d.heightPixels-menuParams.height)/2;}
         if(panelDocked){panelParams.x=2;panelParams.y=2;}clamp(menuParams,d);clamp(panelParams,d);
@@ -32,7 +32,7 @@ public final class HandOverlay implements AutoCloseable {
     public void update(boolean active,HandReply data,String status){if(closed)return;running=active;reply=data;message=status;controls.invalidate();grid.invalidate();}
     public List<Rect> bounds(){return bounds;}
     private void updateBounds(){List<Rect> b=new ArrayList<>();b.add(new Rect(menuParams.x,menuParams.y,menuParams.x+menuParams.width,menuParams.y+menuParams.height));if(panelVisible)b.add(new Rect(panelParams.x,panelParams.y,panelParams.x+panelParams.width,panelParams.y+panelParams.height));bounds=List.copyOf(b);}
-    private void collapse(){expanded=!expanded;menuDocked=true;resize();}
+    private void collapse(){expanded=!expanded;menuDocked=false;resize();}
     private void panel(){panelVisible=!panelVisible;if(panelVisible)wm.addView(grid,panelParams);else wm.removeView(grid);updateBounds();}
     private void drag(View view,WindowManager.LayoutParams p,boolean menu){view.setOnTouchListener(new View.OnTouchListener(){float x,y;int px,py;boolean moved;long start;
         public boolean onTouch(View v,MotionEvent e){switch(e.getActionMasked()){
@@ -54,9 +54,8 @@ public final class HandOverlay implements AutoCloseable {
     private final class Grid extends View {
         final Paint p=new Paint(3);Grid(){super(context);setContentDescription("服务器返回的花色点数面板，点击隐藏，拖动移动");}
         @Override public boolean performClick(){super.performClick();return true;}
-        @Override protected void onDraw(Canvas c){super.onDraw(c);float footer=getHeight()*.1f,header=getHeight()*.1f,row=(getHeight()-footer-header)/8f,col=getWidth()/14f;
+        @Override protected void onDraw(Canvas c){super.onDraw(c);float footer=getHeight()*.1f,header=0,row=(getHeight()-footer-header)/8f,col=getWidth()/14f;
             c.drawColor(0xFFF5F8FE);p.setTextAlign(Paint.Align.CENTER);p.setColor(0xFF647B98);p.setTextSize(Math.min(col*.68f,header*.85f));
-            for(int x=0;x<13;x++)c.drawText(HandSnapshots.RANKS.get(x),col*(x+1.5f),header*.8f,p);
             for(int y=0;y<8;y++){if(y%2==1){p.setColor(0xFFE3EDFA);c.drawRect(0,header+y*row,getWidth(),header+(y+1)*row,p);}p.setColor(y/2==1||y/2==3?0xFFE32636:0xFF39434B);p.setTextSize(row*.92f);c.drawText(new String[]{"♠","♥","♣","♦"}[y/2],col*.5f,header+(y+.83f)*row,p);
                 for(int x=0;x<13;x++)if(reply!=null&&reply.occupied(y,x)){p.setTextSize(Math.min(row*.85f,col*.9f));c.drawText(HandSnapshots.RANKS.get(x),col*(x+1.5f),header+(y+.8f)*row,p);}}
             p.setColor(0xFF4387D9);p.setStrokeWidth(Math.max(1,dp(.6f)));for(int x=0;x<=14;x++)c.drawLine(x*col,header,x*col,getHeight()-footer,p);for(int y=0;y<=8;y++)c.drawLine(0,header+y*row,getWidth(),header+y*row,p);
