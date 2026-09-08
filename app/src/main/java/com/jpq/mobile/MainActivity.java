@@ -32,27 +32,26 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(0xFFF8F5EE);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(22),dp(22),dp(22),dp(24));scroll.addView(root);setContentView(scroll);
         root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(22),dp(14)+insets.getSystemWindowInsetTop(),dp(22),dp(20)+insets.getSystemWindowInsetBottom());return insets;});
-        TextView title=text("记牌器",30,0xFF302C24);title.setTypeface(null,android.graphics.Typeface.BOLD);root.addView(title);root.addView(text("看清每张牌，记住每次出牌",14,0xFF887B67));
-        LinearLayout live=box();live.addView(text("悬浮条预览",13,0xFF887B67));preview=new CounterStrip(this,appearance);live.addView(preview,new LinearLayout.LayoutParams(-1,-2));
-        live.addView(text("黑色牌点 · 橙色余量 · 灰色归零\n左侧切换自动记牌，拖动调整位置，点牌面查看记录。",12,0xFF887B67));
+        TextView title=text("手牌助手 · v2",30,0xFF302C24);title.setTypeface(null,android.graphics.Typeface.BOLD);root.addView(title);root.addView(text("识别自己的 13 张手牌，查看服务器返回结果",14,0xFF887B67));
+        LinearLayout live=box();live.addView(text("悬浮控制 · 启动 / 设置 / 说明 / 退出",15,0xFF62553F));preview=new CounterStrip(this,appearance);
+        live.addView(text("控制栏可收起到屏幕边缘。左上角面板按花色和点数显示服务器结果，点击面板可隐藏。",13,0xFF887B67));
         status=text("正在载入配置…",15,0xFF62553F);live.addView(status);stats=text("",12,0xFF887B67);live.addView(stats);addBox(root,live);
         LinearLayout config=box();config.addView(text("游戏配置",18,0xFF302C24));packLabel=text("正在检查内置配置包",14,0xFF62553F);config.addView(packLabel);
         config.addView(button("导入新的 ZIP 配置包",this::importPack));config.addView(text("配置来自 JPQ Tools。所有截图仅在本机处理，不上传。",12,0xFF887B67));addBox(root,config);
-        LinearLayout controls=box();start=button("开始记牌",this::begin);start.setTextColor(Color.WHITE);start.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFC97832));controls.addView(start);
+        LinearLayout controls=box();start=button("开启悬浮控制",this::begin);start.setTextColor(Color.WHITE);start.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFC97832));controls.addView(start);
         stop=button("停止识别",()->stopService(new Intent(this,CaptureService.class)));controls.addView(stop);
-        controls.addView(text("请在发牌前开启。余量 = 整副牌 − 各家已确认出牌，包含你尚未打出的手牌。中途开启无法补回此前出牌。",13,0xFF887B67));addBox(root,controls);
-        LinearLayout tools=box();tools.addView(text("显示与记录",18,0xFF302C24));tools.addView(button("我方手牌 / 服务器上传",this::handDialog));tools.addView(button("样式与颜色",this::appearanceDialog));tools.addView(button("游戏画面范围",this::viewportDialog));tools.addView(button("出牌记录 / 待核对",this::history));tools.addView(button("导出本次记录",this::exportReport));tools.addView(button("撤销上一笔已计入出牌",()->{CaptureService s=CaptureService.current;if(s!=null)s.command("undo",0);else toast("请先开始记牌");}));
-        tools.addView(button("手动确认新局",()->{CaptureService s=CaptureService.current;if(s==null){toast("请先开始记牌");return;}new AlertDialog.Builder(this).setTitle("确认刚刚发牌？").setMessage("这会重置本局余量。只在新一局开始时使用。").setNegativeButton("取消",null).setPositiveButton("确认新局",(d,w)->s.command("new",0)).show();}));addBox(root,tools);
-        root.addView(text("结算特征命中后锁定。临近结算的候选先保留核对，不会直接扣牌。",12,0xFF887B67));
+        controls.addView(text("授权后切换到游戏，点击悬浮栏“启动”。识别到新局且连续确认完整 13 张手牌后才发送；12 张、14 张或花色不明均不发送。",13,0xFF887B67));addBox(root,controls);
+        LinearLayout tools=box();tools.addView(text("手牌与服务器",18,0xFF302C24));tools.addView(button("我方手牌 / 服务器上传",this::handDialog));tools.addView(button("显示 / 隐藏服务器面板",()->{CaptureService s=CaptureService.current;if(s!=null)s.toggleHandPanel();else toast("请先开启悬浮控制");}));tools.addView(button("游戏画面范围",this::viewportDialog));addBox(root,tools);
+        root.addView(text("新局、结束特征及手牌模板需由 JPQ Tools 配置。未配置服务器时不上传，面板不会生成模拟牌面。",12,0xFF887B67));
         io.execute(()->{try{Pack loaded=Pack.current(this);ui.post(()->{pack=loaded;loading=false;refresh();});}catch(Exception e){ui.post(()->{loading=false;setText(status,"配置载入失败："+e.getMessage());toast(e.getMessage());});}});
     }
     private void setText(TextView v,String text){if(!v.getText().toString().equals(text))v.setText(text);}
     private void refresh(){if(isDestroyed())return;CaptureService s=CaptureService.current;start.setEnabled(!loading&&pack!=null&&s==null);stop.setEnabled(s!=null);if(pack==null)return;
         try{setText(packLabel,pack.name+"  ·  "+pack.json.getJSONObject("package").getString("version")+"\n"+pack.hands.size()+" 人 · "+pack.deck.values().stream().mapToInt(Integer::intValue).sum()+" 张牌 · "+pack.resources.size()+" 个模板");}catch(Exception ignored){}
         if(s==null){String error=getSharedPreferences("capture",0).getString("last_error","");setText(status,error.isEmpty()?"准备就绪 · 等待开启":error);setText(stats,"默认采样 "+pack.timing.optInt("sample_interval_ms")+"ms · 结算保护 "+pack.guard.optInt("settlement_hold_ms")/1000f+"s");preview.data(pack.order,pack.deck,true,false,0);}
-        else{setText(status,s.status);setText(stats,s.frameMillis>0?"单帧处理 "+s.frameMillis+"ms · "+(s.automatic?"自动记牌":"已暂停"):"正在连接屏幕采集");if(s.ledger!=null)preview.data(pack.order,s.ledger.remaining(),s.automatic,s.ledger.phase==Ledger.Phase.WAITING,s.ledger.reviews());}
+        else{setText(status,s.automatic?s.handStatus:"已暂停 · 点击悬浮栏启动");setText(stats,s.frameMillis>0?"单帧处理 "+s.frameMillis+"ms · "+(s.automatic?"自动记牌":"已暂停"):"正在连接屏幕采集");if(s.ledger!=null)preview.data(pack.order,s.ledger.remaining(),s.automatic,s.ledger.phase==Ledger.Phase.WAITING,s.ledger.reviews());}
     }
-    @Override protected void onResume(){super.onResume();ui.post(poll);if(pendingStart&&Settings.canDrawOverlays(this)){pendingStart=false;requestCapture();}}
+    @Override protected void onResume(){super.onResume();ui.post(poll);if(getIntent().getBooleanExtra("hand_settings",false)){getIntent().removeExtra("hand_settings");handDialog();}if(pendingStart&&Settings.canDrawOverlays(this)){pendingStart=false;requestCapture();}}
     @Override protected void onPause(){super.onPause();ui.removeCallbacks(poll);}
     @Override protected void onDestroy(){super.onDestroy();ui.removeCallbacks(poll);io.shutdown();}
     private void toast(String message){Toast.makeText(this,message==null?"操作失败":message,Toast.LENGTH_LONG).show();}
@@ -62,7 +61,7 @@ public final class MainActivity extends Activity {
     private void projectionPrompt(){MediaProjectionManager m=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);Intent intent=Build.VERSION.SDK_INT>=34?m.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay()):m.createScreenCaptureIntent();startActivityForResult(intent,81);}
     private void importPack(){if(CaptureService.current!=null){toast("请先停止识别，再更换配置");return;}Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/zip","application/x-zip-compressed","application/octet-stream"});startActivityForResult(i,82);}
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null)return;
-        if(request==81){getSharedPreferences("capture",0).edit().remove("last_error").apply();Intent service=new Intent(this,CaptureService.class).putExtra("projection",data).putExtra("result",result);startForegroundService(service);toast("已开启，切换到横屏游戏即可");}
+        if(request==81){getSharedPreferences("capture",0).edit().remove("last_error").apply();Intent service=new Intent(this,CaptureService.class).putExtra("projection",data).putExtra("result",result);startForegroundService(service);toast("悬浮控制已开启，请点击悬浮栏的启动");}
         if(request==82){if(CaptureService.current!=null){toast("识别中不能更换配置");return;}loading=true;refresh();io.execute(()->{try(InputStream in=getContentResolver().openInputStream(data.getData())){Pack next=Pack.install(this,in);ui.post(()->{pack=next;loading=false;getSharedPreferences("capture",0).edit().remove("last_error").apply();refresh();toast("配置已导入");});}catch(Exception e){ui.post(()->{loading=false;refresh();toast("导入失败，保留旧配置："+e.getMessage());});}});}
         if(request==83){io.execute(()->{try(OutputStream out=getContentResolver().openOutputStream(data.getData())){out.write(savedReport.getBytes(StandardCharsets.UTF_8));ui.post(()->toast("记录已导出"));}catch(Exception e){ui.post(()->toast(e.getMessage()));}});}
     }
@@ -85,11 +84,12 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.addView(fields);AlertDialog d=new AlertDialog.Builder(this).setTitle("样式与颜色").setView(scroll).setNegativeButton("取消",null).setNeutralButton("恢复参考配色",null).setPositiveButton("保存",null).create();d.setOnShowListener(v->{d.getButton(-3).setOnClickListener(b->{Appearance a=new Appearance();a.save(this);appearance.load(this);applyAppearance();d.dismiss();});d.getButton(-1).setOnClickListener(b->{try{int[] cs=new int[6];for(int i=0;i<6;i++){String hex=edits[i].getText().toString().trim();if(!hex.matches("#[0-9a-fA-F]{6}"))throw new IllegalArgumentException("请输入 # 开头的六位颜色值");cs[i]=Color.parseColor(hex);}appearance.background=cs[0];appearance.rank=cs[1];appearance.number=cs[2];appearance.zero=cs[3];appearance.accent=cs[4];appearance.grid=cs[5];appearance.width=(width.getProgress()+25)/100f;appearance.opacity=(opacity.getProgress()+50)/100f;appearance.save(this);applyAppearance();d.dismiss();}catch(Exception e){toast(e.getMessage());}});});d.show();
     }
     private void applyAppearance(){preview.invalidate();CaptureService s=CaptureService.current;if(s!=null)s.refreshAppearance();}
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("hand_settings",false)){intent.removeExtra("hand_settings");handDialog();}}
     private void handDialog(){
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(12),dp(20),dp(12));
         CaptureService service=CaptureService.current;
         box.addView(text(service==null?"未开始采集":service.handStatus,16,0xFF302C24));
-        box.addView(text("需要导入 v2 我方手牌配置。只发送点数、花色和数量，不发送截图。识别结果可能不完整。服务器接口尚需按文档对接。",14,0xFF62553F));
+        box.addView(text("需要手牌、新局和结束特征配置。每局连续确认 13 张手牌才发送点数、花色和数量，不发送截图；服务器结果显示在左上角。接口暂未对接。",14,0xFF62553F));
         SharedPreferences pref=getSharedPreferences("hand_upload",0);EditText endpoint=new EditText(this);endpoint.setSingleLine(true);endpoint.setHint("https://你的服务器/接口路径");endpoint.setText(pref.getString("endpoint",""));box.addView(endpoint);
         CheckBox enabled=new CheckBox(this);enabled.setText("允许上传我的手牌数据");enabled.setChecked(pref.getBoolean("enabled",false));box.addView(enabled);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("我方手牌与上传").setView(box).setNegativeButton("关闭",null).setPositiveButton("保存",null).create();

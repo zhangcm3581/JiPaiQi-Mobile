@@ -20,10 +20,11 @@ public class CaptureFlowTest {
         var instrumentation=InstrumentationRegistry.getInstrumentation();Context target=instrumentation.getTargetContext();UiDevice device=UiDevice.getInstance(instrumentation);
         Assume.assumeTrue("先通过系统界面允许悬浮窗",Settings.canDrawOverlays(target));
         target.startActivity(new Intent(target,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        UiObject2 start=device.wait(Until.findObject(By.text("开始记牌")),10000);assertNotNull(start);Thread.sleep(700);start.click();
+        UiObject2 start=device.wait(Until.findObject(By.text("开启悬浮控制")),10000);assertNotNull(start);Thread.sleep(700);start.click();
         UiObject2 consent=device.wait(Until.findObject(By.text("立即开始")),10000);assertNotNull("系统屏幕采集授权弹窗",consent);consent.click();
         try{
             await("前台采集服务启动",()->CaptureService.current!=null&&CaptureService.current.ledger!=null);
+            instrumentation.runOnMainSync(()->{CaptureService.current.toggle();CaptureService.current.toggleHandPanel();});
             fixture(target,"overlap");
             await("实际截图后识别计入 33/QQ",()->CaptureService.current.ledger.remaining().get("3")==2&&CaptureService.current.ledger.remaining().get("Q")==2);
             assertTrue(CaptureService.current.frameMillis>0);

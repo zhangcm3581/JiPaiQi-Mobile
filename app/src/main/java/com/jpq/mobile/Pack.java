@@ -72,7 +72,7 @@ public final class Pack {
         }
         JSONArray states=json.getJSONArray("states");boolean hasEnd=false,hasStart=false;
         for(int i=0;i<states.length();i++){JSONObject s=states.getJSONObject(i);require(s.getString("combine").equals("any"),"状态组合不支持");String purpose=s.getString("purpose");hasEnd|=purpose.equals("round_end");hasStart|=purpose.equals("new_round_candidate");JSONArray ids=s.getJSONArray("detector_ids");require(ids.length()>0,"空状态特征");for(int j=0;j<ids.length();j++)require(detectors.containsKey(ids.getString(j)),"状态检测器不存在");}
-        require((hasEnd&&hasStart)||(regions.values().stream().noneMatch(r->r.optJSONObject("semantic").optString("role").equals("played"))&&regions.values().stream().anyMatch(r->r.optJSONObject("semantic").optString("role").equals("hand"))),"自动记牌需要开局和结束特征");
+        require(hasEnd&&hasStart,"自动识别需要新局和结束特征，请在工具端配置后重新导入");
         require(json.getJSONObject("state_resolution").getString("type").equals("state.priority.v1"),"状态优先级不支持");
         timing=json.getJSONObject("recognition_timing");guard=json.getJSONObject("round_guard");
         require(timing.getString("type").equals("recognition.timing.v1")&&guard.getString("type").equals("recognition.round_guard.v1"),"识别规则版本不支持");
