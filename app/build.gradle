@@ -7,20 +7,24 @@ android {
         minSdk 26
         targetSdk 35
         ndk { abiFilters 'arm64-v8a' }
-        versionCode 6
-        versionName '0.3.3'
+        versionCode 19
+        versionName '0.4.12'
+        buildConfigField 'String', 'SERVER_URL', groovy.json.JsonOutput.toJson(providers.gradleProperty('jpqServerUrl').getOrElse('http://139.199.12.90:8080'))
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions { coreLibraryDesugaringEnabled true; sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildFeatures { buildConfig true }
     buildTypes { release { minifyEnabled false } }
     testOptions { unitTests.returnDefaultValues = true }
 }
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'org.opencv:opencv:4.12.0'
     androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
 }

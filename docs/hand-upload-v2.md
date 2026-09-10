@@ -1,4 +1,10 @@
+> 历史 HTTP 协议草案，当前运行不使用。当前为 WebSocket protocol_version=1、默认上传、服务器结果严格13张；以 [client-v2-implementation.md](client-v2-implementation.md) 为准。
+
+> 2026-09-09 更新：0.4.0已实现下述十三水协议、预处理与显隐规则。当前行为及边界以 [client-v2-implementation.md](client-v2-implementation.md) 为准；原文“待实现”是此前记录。
+
 # v2 十三张手牌与服务器结果（APK 0.3.1）
+
+> 本文保留旧 APK 的 HTTP 草案与实现说明。后续对接以 JiPaiQi-Serve 的 WebSocket v1 为准；摆牌按钮持续命中时的轮次规则见 [轮次同步约定](round-sync.md)，客户端改造尚未完成。
 
 接口尚未提供，目前仅完成客户端及协议草案。HTTPS 上传默认关闭，不能把本地识别结果当成服务器结果显示。无地址时面板显示未配置服务器。
 
@@ -82,3 +88,8 @@ POST 用户指定的 HTTPS 地址，拒绝 HTTP、URL 用户密码和 fragment�
 仅缓存最新待发请求，不写入手机文件队列。新局、暂停、结束、停止服务时取消待发请求，并断开活动连接；已经到达服务器的数据不能撤销，靠请求 ID 与局 ID 防止串局显示。没有 WebSocket、轮询、定时心跳；若真实接口采用异步推送，须按最终接口文档补接。
 
 截图只在内存处理，上传不包含截图。新功能不改变游戏 FLAG_SECURE 截屏保护。
+
+
+## 客户端必做：手牌底色预处理
+
+2026-09-09：jpq-tools已启用 `cards.background.yellow_to_white.v1`。客户端必须对手牌截图ROI与模板同步执行蓝通道 B=max(B,min(G,R))，然后再执行彩色/灰度/二值化和模板匹配；开局/结束不处理。禁止遗漏或静默忽略素材包requires。完整约束及验收见 [hand-background-preprocess.md](hand-background-preprocess.md)。此功能在Android端尚未实现，属于联调前必做项。

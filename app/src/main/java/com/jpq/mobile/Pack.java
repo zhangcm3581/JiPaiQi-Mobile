@@ -21,7 +21,7 @@ public final class Pack {
     public final List<String> order=new ArrayList<>();
     public final String name;
     public final JSONObject timing,guard,rows;
-    private static final Set<String> CAPABILITIES=Set.of("cards.hand_identity.v1","cards.row_ownership.v1","color.base_and_any_ink.v1","color.selected.v2","recognition.round_guard.v1","recognition.timing.v1","state.priority.v1","template.ccoeff_normed.v1");
+    private static final Set<String> CAPABILITIES=Set.of("cards.hand_rank_suit.v1","cards.background.yellow_to_white.v1","cards.hand_identity.v1","cards.row_ownership.v1","color.base_and_any_ink.v1","color.selected.v2","recognition.round_guard.v1","recognition.timing.v1","state.priority.v1","template.ccoeff_normed.v1");
 
     public Pack(File dir) throws Exception {
         folder=dir;
@@ -31,6 +31,7 @@ public final class Pack {
         require(json.getString("schema").equals("jpq.mobile-adaptation/1.0"),"不支持此配置版本");
         JSONArray required=json.getJSONArray("requires");
         for(int i=0;i<required.length();i++)require(CAPABILITIES.contains(required.getString(i)),"尚不支持："+required.getString(i));
+        if(json.has("hand_preprocess"))require(json.getString("hand_preprocess").equals("cards.background.yellow_to_white.v1"),"未知手牌底色预处理版本");
         JSONObject layout=json.getJSONObject("layout");
         require(layout.getString("transform").equals("uniform_fit") && layout.getString("coordinate_space").equals("normalized_content"),"画面坐标类型不支持");
         width=layout.getJSONArray("base_size").getInt(0);height=layout.getJSONArray("base_size").getInt(1);
@@ -61,6 +62,14 @@ public final class Pack {
             if(type.equals("template.ccoeff_normed.v1")){
                 require(resources.containsKey(d.getString("resource_id")),"模板引用不存在");
                 require(Set.of("gray","color","otsu").contains(params.getString("preprocess")),"预处理不支持");
+                if(params.has("background_normalization")){
+                    require(params.getString("background_normalization").equals("cards.background.yellow_to_white.v1"),"未知手牌底色处理");
+                    JSONObject resource=resources.get(d.getString("resource_id"));
+                    require(resource.optString("group").equals("me")&&resource.getJSONObject("semantic").optString("role").equals("hand"),"底色处理只能用于我方手牌");
+                }
+                JSONObject rs=resources.get(d.getString("resource_id"));
+                if(params.has("identity_scoring"))require(params.getString("identity_scoring").equals("cards.hand_rank_suit.v1")&&rs.getJSONObject("semantic").optString("role").equals("hand"),"未知或错误用途的点数花色评分");
+                if(json.has("hand_preprocess")&&rs.optString("group").equals("me")&&rs.getJSONObject("semantic").optString("role").equals("hand"))require(params.optString("background_normalization").equals(json.getString("hand_preprocess")),"手牌检测器缺少底色预处理");
                 double threshold=params.getDouble("threshold");require(Double.isFinite(threshold)&&threshold>=.1&&threshold<=1,"匹配阈值无效");
                 require(d.isNull("region_id")||regions.containsKey(d.getString("region_id")),"搜索区域不存在");
             }else if(type.startsWith("color.")){
@@ -92,7 +101,25 @@ public final class Pack {
     public double[] sourceRect(JSONArray a)throws Exception{double[] r=numbers(a);return new double[]{content[0]+r[0]*content[2],content[1]+r[1]*content[3],r[2]*content[2],r[3]*content[3]};}
     static File safeFile(File root,String path)throws Exception{File f=new File(root,path);require(!path.contains("\\")&&!path.startsWith("/")&&f.getCanonicalPath().startsWith(root.getCanonicalPath()+File.separator),"配置包路径不安全");return f;}
     static void delete(File f){if(f.isDirectory()){File[] cs=f.listFiles();if(cs!=null)for(File c:cs)delete(c);}f.delete();}
-    public static Pack current(Context c)throws Exception{File dir=new File(c.getFilesDir(),"pack");if(!dir.isDirectory())try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}return new Pack(dir);}
+    public static Pack current(Context c)throws Exception{
+        File dir=new File(c.getFilesDir(),"pack");
+        if(!dir.isDirectory())try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}
+        Pack current=new Pack(dir);
+        String predecessor;
+        try(InputStream in=c.getAssets().open("default-pack-predecessor.sha256")){byte[] value=new byte[128];int n=in.read(value);predecessor=n<0?"":new String(value,0,n,StandardCharsets.UTF_8).trim();}
+        catch(FileNotFoundException absent){return current;}
+        // Upgrade only our unchanged previous bundle; never overwrite an operator's edited pack.
+        if(predecessor.matches("[0-9a-f]{64}")&&predecessor.equals(fingerprint(dir)))try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}
+        return current;
+    }
+    private static String fingerprint(File dir)throws Exception{
+        var digest=java.security.MessageDigest.getInstance("SHA-256");File[] files=dir.listFiles();
+        if(files==null)return "";Arrays.sort(files,Comparator.comparing(File::getName));byte[] buffer=new byte[8192];
+        for(File file:files){if(!file.isFile())return "";digest.update(file.getName().getBytes(StandardCharsets.UTF_8));digest.update((byte)0);
+            try(InputStream in=new FileInputStream(file)){int n;while((n=in.read(buffer))!=-1)digest.update(buffer,0,n);}digest.update((byte)0);
+        }
+        StringBuilder hash=new StringBuilder();for(byte value:digest.digest())hash.append(String.format(Locale.ROOT,"%02x",value&255));return hash.toString();
+    }
     public static synchronized Pack install(Context c,InputStream in)throws Exception{
         File stage=new File(c.getFilesDir(),"pack-stage-"+UUID.randomUUID());require(stage.mkdirs(),"无法创建配置目录");
         try{

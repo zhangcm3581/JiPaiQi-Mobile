@@ -7,4 +7,20 @@
         <item name="android:navigationBarColor">#F8F5EE</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="EntryTheme" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+    <style name="FloatingSettingsTheme" parent="android:style/Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#236AAB</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowMinWidthMajor">0dp</item>
+        <item name="android:windowMinWidthMinor">0dp</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
