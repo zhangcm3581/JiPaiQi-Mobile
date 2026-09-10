@@ -18,7 +18,7 @@ public class FixtureActivity extends Activity {
         else registerReceiver(frames,new android.content.IntentFilter("com.jpq.mobile.test.FRAME"));
     }
     @Override public void onNewIntent(Intent i){super.onNewIntent(i);setIntent(i);show();}
-    private void show(){String name=getIntent().getStringExtra("fixture");if(!java.util.Set.of("overlap","settlement","two_rows","three_aces","shisanshui/predeal","shisanshui/yellow_k","shisanshui/missing_12","shisanshui/extra_14","shisanshui/arranging","shisanshui/confirm_ready","shisanshui/comparing","shisanshui/end_right","shisanshui/end_hall").contains(name)){finish();return;}
-        try(InputStream in=getAssets().open(name+".png")){Bitmap next=BitmapFactory.decodeStream(in),old=image;image=next;canvas.invalidate();if(old!=null)canvas.postDelayed(old::recycle,500);}catch(Exception e){finish();}}
+    private void show(){String name=getIntent().getStringExtra("fixture");if(!name.matches("shisanshui/golden_round_[1-8]")&&!java.util.Set.of("overlap","settlement","two_rows","three_aces","shisanshui/predeal","shisanshui/yellow_k","shisanshui/missing_12","shisanshui/extra_14","shisanshui/arranging","shisanshui/confirm_ready","shisanshui/comparing","shisanshui/end_right","shisanshui/end_hall").contains(name)){finish();return;}
+        try(InputStream in=getAssets().open(name+".png")){Bitmap next=BitmapFactory.decodeStream(in),old=image;image=next;if(getIntent().getBooleanExtra("latency_probe",false)){canvas.getViewTreeObserver().registerFrameCommitCallback(()->sendBroadcast(new Intent("com.jpq.mobile.test.PRESENTED").setPackage("com.jpq.mobile").putExtra("fixture",name).putExtra("presented_ns",android.os.SystemClock.elapsedRealtimeNanos())));}canvas.invalidate();if(old!=null)canvas.postDelayed(old::recycle,500);}catch(Exception e){finish();}}
     @Override protected void onDestroy(){unregisterReceiver(frames);if(image!=null)image.recycle();super.onDestroy();}
 }

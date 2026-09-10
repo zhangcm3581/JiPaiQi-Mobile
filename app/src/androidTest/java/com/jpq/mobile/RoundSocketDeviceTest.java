@@ -51,7 +51,7 @@ public class RoundSocketDeviceTest {
     void verifyVisibleGrid(HandReply reply,List<String> expected)throws Exception {
         var inst=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation();var target=inst.getTargetContext();
         assertTrue("需要悬浮窗权限验证真实面板",android.provider.Settings.canDrawOverlays(target));
-        target.startActivity(new android.content.Intent().setClassName("com.jpq.mobile.test","com.jpq.mobile.FixtureActivity").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("fixture","shisanshui/predeal"));
+        target.startActivity(new android.content.Intent().setClassName("com.jpq.mobile.test","com.jpq.mobile.FixtureActivity").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("fixture","shisanshui/confirm_ready"));
         Thread.sleep(800);
         HandOverlay[] overlay=new HandOverlay[1];
         inst.runOnMainSync(()->{overlay[0]=new HandOverlay(target,new HandOverlay.Actions(){public void toggle(){}public void settings(){}public void help(){}public void exit(){}});overlay[0].update(true,reply,"服务器结果",true);});

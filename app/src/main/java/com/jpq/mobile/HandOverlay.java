@@ -38,7 +38,7 @@ public final class HandOverlay implements AutoCloseable {
     private DisplayMetrics screen(){DisplayMetrics d=new DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(d);return d;}
     private void clamp(WindowManager.LayoutParams p,DisplayMetrics d){p.x=Math.max(0,Math.min(p.x,d.widthPixels-p.width));p.y=Math.max(0,Math.min(p.y,d.heightPixels-p.height));}
     private void size(){DisplayMetrics d=screen();menuParams.width=expanded?Math.min(dp(240),d.widthPixels-dp(16)):Math.max(dp(48),Math.round(d.widthPixels*.045f));menuParams.height=expanded?dp(48):Math.round(menuParams.width*1.2f);
-        panelParams.width=Math.min(dp(400),Math.round(d.widthPixels*.27f));panelParams.height=Math.round(panelParams.width*.46f);
+        panelParams.width=Math.round(d.widthPixels*.425f);panelParams.height=Math.round(d.heightPixels*.207f);
         if(menuDocked){menuParams.x=d.widthPixels-menuParams.width;menuParams.y=(d.heightPixels-menuParams.height)/2;}
         if(!menuDocked&&rightDocked)menuParams.x=d.widthPixels-menuParams.width;
         panelParams.x=2;panelParams.y=2;clamp(menuParams,d);clamp(panelParams,d);
@@ -190,12 +190,20 @@ public final class HandOverlay implements AutoCloseable {
         }
     }
     private final class Grid extends View {
-        final Paint p=new Paint(3);Grid(){super(context);setContentDescription("服务器返回的花色点数面板，固定左上角，点击隐藏");}
+        final Paint p=new Paint(3);final Rect rankInk=new Rect();Grid(){super(context);setContentDescription("服务器返回的花色点数面板，固定左上角，点击隐藏");}
         @Override public boolean performClick(){super.performClick();return true;}
         @Override protected void onDraw(Canvas c){super.onDraw(c);float footer=getHeight()*.1f,header=0,row=(getHeight()-footer-header)/8f,col=getWidth()/14f;
             c.drawColor(0xFFF5F8FE);p.setTextAlign(Paint.Align.CENTER);p.setColor(0xFF647B98);p.setTextSize(Math.min(col*.68f,header*.85f));
             for(int y=0;y<8;y++){if(y%2==1){p.setColor(0xFFE3EDFA);c.drawRect(0,header+y*row,getWidth(),header+(y+1)*row,p);}p.setColor(y/2==1||y/2==3?0xFFE32636:0xFF39434B);p.setTextSize(row*.92f);c.drawText(new String[]{"♠","♥","♣","♦"}[y/2],col*.5f,header+(y+.83f)*row,p);
-                for(int x=0;x<13;x++)if(reply!=null&&reply.occupied(y,x)){p.setTextSize(Math.min(row*.85f,col*.9f));c.drawText(HandSnapshots.RANKS.get(x),col*(x+1.5f),header+(y+.8f)*row,p);}}
+                for(int x=0;x<13;x++)if(reply!=null&&reply.occupied(y,x)){
+                    String rank=HandSnapshots.RANKS.get(x);p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(100);
+                    Rect ink=rankInk;p.getTextBounds(rank,0,rank.length(),ink);
+                    float padding=Math.max(1,dp(.6f)),availableW=col-2*padding,availableH=row-2*padding;
+                    float fit=Math.min(availableW/Math.max(p.measureText(rank),ink.width()),availableH/Math.max(1,ink.height()));
+                    p.setTextSize(100*fit);p.getTextBounds(rank,0,rank.length(),ink);
+                    c.drawText(rank,col*(x+1.5f),header+(y+.5f)*row-(ink.top+ink.bottom)*.5f,p);
+                    p.setTypeface(Typeface.DEFAULT);
+                }}
             p.setColor(0xFF4387D9);p.setStrokeWidth(Math.max(1,dp(.6f)));for(int x=0;x<=14;x++)c.drawLine(x*col,header,x*col,getHeight()-footer,p);for(int y=0;y<=8;y++)c.drawLine(0,header+y*row,getWidth(),header+y*row,p);
             p.setColor(0xFF6D7B8D);p.setTextAlign(Paint.Align.LEFT);p.setTextSize(footer*.72f);String label=reply==null?message:reply.totalCount+" 张 · "+message;while(p.measureText(label)>getWidth()-4&&label.length()>1)label=label.substring(0,label.length()-1);c.drawText(label,2,getHeight()-footer*.2f,p);
         }
