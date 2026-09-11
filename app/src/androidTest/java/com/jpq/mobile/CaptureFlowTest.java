@@ -66,11 +66,16 @@ public class CaptureFlowTest {
             device.findObject(new UiSelector().className("android.widget.EditText").instance(1)).setText("before_save");
             device.findObject(By.text("保存")).click();device.waitForIdle();
             assertEquals("before_save",pref.getString("client_id",""));assertFalse(pref.contains("endpoint"));
-            await("新 ID 已连接",()->online(http,tenant,"before_save"));
+            Thread.sleep(1200);assertFalse("未点击启动不允许连接",online(http,tenant,"before_save"));
+            inst.runOnMainSync(original::toggle);await("点击启动才连接",()->online(http,tenant,"before_save"));
             openSettings(device);
             device.findObject(new UiSelector().className("android.widget.EditText").instance(1)).setText("after_save");
             device.findObject(By.text("保存")).click();device.waitForIdle();
-            await("切换 ID 关闭旧连接并重连",()->online(http,tenant,"after_save")&&!online(http,tenant,"before_save"));
+            await("切换 ID 关闭旧连接",()->!online(http,tenant,"before_save"));
+            Thread.sleep(1200);assertFalse("保存新ID不自动上线",online(http,tenant,"after_save"));
+            inst.runOnMainSync(original::toggle);await("新ID启动上线",()->online(http,tenant,"after_save"));
+            inst.runOnMainSync(original::toggle);await("暂停离线",()->!online(http,tenant,"after_save"));
+            Thread.sleep(3500);assertFalse("暂停期间不重连",online(http,tenant,"after_save"));
             assertSame("保存 ID 保持原截图服务和悬浮窗",original,CaptureService.current);
             assertFalse(original.automatic);
             assertNotNull(device.wait(Until.findObject(By.descStartsWith("悬浮控制栏")),5000));
@@ -142,6 +147,19 @@ public class CaptureFlowTest {
             assertSame(original,CaptureService.current);assertTrue(original.automatic);
             await("下一桌开局重新显示",()->original.report().optBoolean("panel_visible"));
             try(Response r=http.newCall(new Request.Builder().url("http://127.0.0.1:18081/api/tenants/"+tenant+"/rounds/current").build()).execute()){JSONObject next=new JSONObject(r.body().string());assertEquals(2,next.getInt("round_version"));assertEquals(1,next.getInt("received_count"));}
+            inst.runOnMainSync(original::toggle);
+            await("暂停断开服务器",()->!online(http,tenant,"capture_device_01"));
+            long stoppedFrames=original.freshFrames;Thread.sleep(3500);
+            assertEquals("暂停不识别",stoppedFrames,original.freshFrames);
+            assertFalse(original.report().optBoolean("panel_visible"));
+            try(Response r=http.newCall(new Request.Builder().url(BuildConfig.SERVER_URL+"/api/tenants/"+tenant+"/close").post(RequestBody.create(new JSONObject().put("round_version",2).toString(),MediaType.get("application/json"))).build()).execute()){assertTrue(r.isSuccessful());}
+            inst.runOnMainSync(original::toggle);await("再次启动上线",()->online(http,tenant,"capture_device_01"));
+            Thread.sleep(1800);
+            try(Response r=http.newCall(new Request.Builder().url(BuildConfig.SERVER_URL+"/api/tenants/"+tenant+"/rounds/current").build()).execute()){JSONObject next=new JSONObject(r.body().string());assertEquals(3,next.getInt("round_version"));assertEquals("仍是旧手牌画面不得补传",0,next.getInt("received_count"));}
+            target.sendBroadcast(new Intent("com.jpq.mobile.test.FRAME").setPackage("com.jpq.mobile.test").putExtra("fixture","shisanshui/predeal"));
+            Thread.sleep(1800);
+            target.sendBroadcast(new Intent("com.jpq.mobile.test.FRAME").setPackage("com.jpq.mobile.test").putExtra("fixture","shisanshui/yellow_k"));
+            await("暂停后新局正常上传",()->original.report().optInt("server_round")==3&&original.status.contains("手牌已上报"));
         } finally {
             target.stopService(new Intent(target,CaptureService.class));await("服务释放",()->CaptureService.current==null);
             pref.edit().putString("endpoint",oldEndpoint).putString("tenant_id",oldTenant).putString("client_id",oldClient).putBoolean("enabled",oldEnabled).commit();

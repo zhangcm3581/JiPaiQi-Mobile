@@ -1,0 +1,10 @@
+{
+  "version": "0.4.21",
+  "version_code": 28,
+  "sha256": "80e9ae10200bd2aa11d5acd9aafc1657dedf22bd2327d800895497188dc01303",
+  "original_data_restored_files": 71,
+  "production_endpoint": "http://139.199.12.90:8080",
+  "installed_stopped": true,
+  "jvm_tests_passed": 57,
+  "android_tests_passed": 23
+}

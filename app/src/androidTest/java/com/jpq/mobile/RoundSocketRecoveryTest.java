@@ -17,6 +17,28 @@ public class RoundSocketRecoveryTest {
     @Test public void silentConnectionReconnectsAfterResponseDeadline()throws Exception {check("silent");}
     @Test public void registrationErrorStopsWithSpecificMessage()throws Exception {check("TENANT_NOT_FOUND");}
     @Test public void duplicatedClientStopsReconnectFight()throws Exception {check("duplicate");}
+    @Test public void pausedGateStopsPendingRetriesHeartbeatAndReconnect()throws Exception {
+        var allowed=new java.util.concurrent.atomic.AtomicBoolean(true);AtomicInteger messages=new AtomicInteger();
+        MockWebServer server=new MockWebServer();server.enqueue(new MockResponse().withWebSocketUpgrade(new WebSocketListener(){
+            @Override public void onMessage(WebSocket ws,String text){messages.incrementAndGet();}
+        }));server.start();HandlerThread thread=new HandlerThread("pause-network-test");thread.start();Handler worker=new Handler(thread.getLooper());
+        RoundSession session=new RoundSession("900092","paused","",v->{});RoundSocket[] socket=new RoundSocket[1];
+        var helper=new RoundSocketDeviceTest();
+        try{
+            helper.on(worker,()->socket[0]=new RoundSocket(worker,session,server.url("/").toString(),()->{},allowed::get));
+            assertNotNull(server.takeRequest(5,TimeUnit.SECONDS));Thread.sleep(200);
+            helper.on(worker,()->{
+                session.receive(new JSONObject().put("protocol_version",1).put("tenant_id","900092").put("round_version",1).put("type","round.state").put("payload",new JSONObject().put("enabled",true).put("state","waiting").put("bound_round_version",JSONObject.NULL)));
+                session.frame(0,false,false,java.util.List.of());session.frame(700,false,false,java.util.List.of());
+                session.frame(800,true,false,FullVideoAuditTest.expected(6));session.frame(900,true,false,FullVideoAuditTest.expected(6));socket[0].flush();
+            });
+            helper.await("original pending hand sent",()->messages.get()==1);
+            allowed.set(false);helper.on(worker,()->socket[0].flush());
+            int atPause=messages.get();Thread.sleep(3400);
+            assertEquals("暂停不发送旧请求或心跳",atPause,messages.get());assertEquals("暂停不重新握手",1,server.getRequestCount());
+            assertTrue("暂停不再有可发送请求",session.outgoing().isEmpty());
+        }finally{helper.on(worker,()->{if(socket[0]!=null)socket[0].close();});thread.quitSafely();server.shutdown();}
+    }
     private void check(String mode)throws Exception {
         AtomicInteger connections=new AtomicInteger();MockWebServer server=new MockWebServer();
         server.setDispatcher(new okhttp3.mockwebserver.Dispatcher(){@Override public MockResponse dispatch(RecordedRequest request){

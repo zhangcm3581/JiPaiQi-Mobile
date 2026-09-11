@@ -78,11 +78,12 @@ public final class CaptureService extends Service {
         return START_NOT_STICKY;
     }
     // Worker-owned connection replacement keeps the projection and control window alive.
-    private void configureIdentity() throws Exception {
+    private void configureIdentity() throws Exception {configureIdentity(false);}
+    private void configureIdentity(boolean starting) throws Exception {
         SharedPreferences pref=getSharedPreferences("hand_upload",0);
         String tenant=pref.getString("tenant_id","").trim(),client=pref.getString("client_id","").trim();
-        if(roundSession!=null&&tenant.equals(roundSession.tenant)&&client.equals(roundSession.client))return;
-        automatic=false;identityConfigured=false;
+        if(!starting&&roundSession!=null&&tenant.equals(roundSession.tenant)&&client.equals(roundSession.client))return;
+        if(!starting)automatic=false;identityConfigured=false;
         if(roundSocket!=null){roundSocket.close();roundSocket=null;}
         roundSession=null;cachedFrame=null;handSnapshots.reset();handStatus="等待新的完整手牌";
         if(ledger!=null)ledger.interrupt();
@@ -99,7 +100,7 @@ public final class CaptureService extends Service {
             if(!legacy.isEmpty()&&client.equals(new JSONObject(legacy).optString("client")))restored=legacy;
         }
         roundSession=new RoundSession(tenant,client,restored,value->{if(!pref.edit().putString(store,value).commit())throw new IllegalStateException("无法持久保存轮次");});
-        roundSocket=new RoundSocket(worker,roundSession,endpoint,this::publishPanel);
+        if(starting&&automatic)roundSocket=new RoundSocket(worker,roundSession,endpoint,this::publishPanel,()->automatic&&!closing);
         identityConfigured=true;status=panelStatus="已保存 · 请点击启动";publishPanel();
     }
     public void reloadIdentity(){worker.post(()->{if(closing)return;try{configureIdentity();}catch(Exception error){fatal(error);}});}
@@ -177,7 +178,28 @@ public final class CaptureService extends Service {
     private void clampOverlay(){if(strip==null)return;DisplayMetrics m=new DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(m);params.width=Math.round(m.widthPixels*strip.style.width);params.height=Math.round(params.width/6.5f);if(dockBottomRight){params.x=m.widthPixels-params.width-4;params.y=m.heightPixels-params.height-4;}params.x=Math.max(0,Math.min(params.x,m.widthPixels-params.width));params.y=Math.max(0,Math.min(params.y,m.heightPixels-params.height));overlayBounds=new android.graphics.Rect(params.x,params.y,params.x+params.width,params.y+params.height);}
     public void refreshAppearance(){main.post(()->{if(strip!=null){strip.style.load(this);params.alpha=strip.style.opacity;clampOverlay();windows.updateViewLayout(strip,params);strip.invalidate();}});}
     private void updateStrip(){if(strip!=null&&ledger!=null)strip.data(pack.order,ledger.remaining(),automatic,ledger.phase==Ledger.Phase.WAITING,ledger.reviews());}
-    public void toggle(){if(!automatic&&!identityConfigured){showIdentitySettings();return;}automatic=!automatic;main.post(()->{if(handOverlay!=null)handOverlay.update(automatic,null,automatic?"等待新局 / 完整 13 张手牌":"已暂停",false);});worker.post(()->{if(roundSession!=null)roundSession.gap();cachedFrame=null;handSnapshots.reset();if(!automatic){handResult.end();if(handUpload!=null)handUpload.cancel();panelStatus="已暂停";}else panelStatus="等待新局 / 完整 13 张手牌";if(ledger!=null)ledger.interrupt();hadGap=true;status=automatic?"继续识别 · 当前局可能不完整":"已暂停";persist();});updateStrip();}
+    public void toggle(){
+        if(!automatic&&!identityConfigured){showIdentitySettings();return;}
+        final boolean start=!automatic;automatic=start;
+        main.post(()->{if(handOverlay!=null)handOverlay.update(automatic,null,automatic?"等待新局 / 完整 13 张手牌":"已暂停",false);});
+        worker.post(()->{
+            if(closing||automatic!=start)return;
+            try{
+                if(roundSocket!=null){roundSocket.close();roundSocket=null;}
+                if(start){
+                    // Pausing loses visual continuity. Re-read saved state and reconcile on connection,
+                    // never resume sending an old pending hand just because the network reopened.
+                    configureIdentity(true);
+                    if(!automatic)return;
+                }
+                if(roundSession!=null){roundSession.gap();roundSession.result=null;if(!start)roundSession.status="已暂停 · 未连接";}
+                cachedFrame=null;handSnapshots.reset();observedStart=observedEnd=false;
+                if(!start){handResult.end();if(handUpload!=null)handUpload.cancel();}
+                panelStatus=status=start?"正在连接 · 等待新局":"已暂停 · 未连接";
+                if(ledger!=null)ledger.interrupt();hadGap=true;publishPanel();persist();
+            }catch(Exception e){automatic=false;fatal(e);}
+        });updateStrip();
+    }
     public void command(String action,long id){worker.post(()->{if(ledger==null)return;switch(action){case "confirm"->ledger.confirm(id);case "dismiss"->ledger.dismiss(id);case "undo"->ledger.undo();case "new"->{status="请等待真实结束与下一次开局，不能手动跳轮";}}persist();});}
     public JSONObject report(){JSONObject out=new JSONObject();try{out.put("format","jpq.mobile-session/1");out.put("status",status);out.put("hand_status",handStatus);HandOverlay overlay=handOverlay;out.put("panel_visible",overlay!=null&&overlay.bounds().size()>1);out.put("upload_status",roundSocket==null?"未启用上传":roundSession.status);out.put("server_round",roundSession==null?0:roundSession.round);out.put("package_id",pack==null?"":pack.json.getJSONObject("package").getString("id"));out.put("package_version",pack==null?"":pack.json.getJSONObject("package").getString("version"));JSONArray entries=new JSONArray();if(ledger!=null)synchronized(ledger){out.put("round",ledger.round);out.put("remaining",new JSONObject(ledger.remaining()));for(Ledger.Event e:ledger.history())entries.put(new JSONObject().put("id",e.id).put("round",e.round).put("seat",e.seat).put("name",e.name).put("cards",new JSONArray(e.cards)).put("time_elapsed_ms",e.time).put("status",e.status.name()).put("reason",e.reason));}out.put("events",entries);}catch(JSONException ignored){}return out;}
     private void persist(){try{File tmp=new File(getFilesDir(),"session.tmp"),dest=new File(getFilesDir(),"session.json");try(Writer w=new OutputStreamWriter(new FileOutputStream(tmp),java.nio.charset.StandardCharsets.UTF_8)){w.write(report().toString(2));}java.nio.file.Files.move(tmp.toPath(),dest.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}catch(Exception ignored){}}
