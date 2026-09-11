@@ -186,7 +186,7 @@ public final class HandOverlay implements AutoCloseable {
             if(!expanded){paint.setColor(Color.WHITE);paint.setTextSize(Math.min(dp(25),getWidth()*.9f));c.drawText("‹",getWidth()/2f,getHeight()*.55f,paint);paint.setTextSize(Math.min(dp(10),getWidth()*.42f));c.drawText("展开",getWidth()/2f,getHeight()*.82f,paint);return;}
             String[] icons={running?"Ⅱ":"▶","⚙","i","↪","›"},labels={running?"暂停":"启动","设置","说明","退出","收起"};float unit=getWidth()/5f;
             for(int i=0;i<5;i++){float cx=unit*(i+.5f),cy=getHeight()*.36f,r=Math.min(unit*.34f,getHeight()*.27f);paint.setColor(i==0&&running?0xFFB99D53:0xAA102132);c.drawCircle(cx,cy,r,paint);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(1));paint.setColor(0xFF8194A7);c.drawCircle(cx,cy,r,paint);paint.setStyle(Paint.Style.FILL);paint.setColor(Color.WHITE);paint.setTextSize(r*1.25f);c.drawText(icons[i],cx,cy+r*.45f,paint);paint.setTextSize(Math.min(dp(14),unit*.25f));c.drawText(labels[i],cx,getHeight()*.87f,paint);}
-            paint.setColor(running?0xFF66D5AE:0xFFABB4BF);float pulse=(android.os.SystemClock.elapsedRealtime()/500)%2==0?dp(2):dp(1);c.drawCircle(dp(7),dp(7),pulse,paint);
+            if(running){paint.setColor(0xFF66D5AE);float pulse=(android.os.SystemClock.elapsedRealtime()/500)%2==0?dp(2):dp(1);c.drawCircle(dp(7),dp(7),pulse,paint);}
         }
     }
     private final class Grid extends View {
