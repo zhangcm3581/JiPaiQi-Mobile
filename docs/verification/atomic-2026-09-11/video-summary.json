@@ -1,0 +1,944 @@
+[
+  {
+    "width": 840,
+    "samples": 2202,
+    "failures": [],
+    "rounds": [
+      {
+        "version": 1,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "c"
+          },
+          {
+            "rank": "Q",
+            "suit": "c"
+          },
+          {
+            "rank": "A",
+            "suit": "d"
+          },
+          {
+            "rank": "10",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 2,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "5",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "Q",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "c"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          },
+          {
+            "rank": "10",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 3,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "A",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "9",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          },
+          {
+            "rank": "6",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 4,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "A",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "Q",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "h"
+          },
+          {
+            "rank": "5",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 5,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "K",
+            "suit": "s"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "Q",
+            "suit": "h"
+          },
+          {
+            "rank": "K",
+            "suit": "h"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "J",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 6,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "h"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "K",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "d"
+          },
+          {
+            "rank": "6",
+            "suit": "d"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "J",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 7,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "5",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "K",
+            "suit": "s"
+          },
+          {
+            "rank": "A",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "Q",
+            "suit": "d"
+          },
+          {
+            "rank": "K",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 8,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "9",
+            "suit": "s"
+          },
+          {
+            "rank": "A",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "3",
+            "suit": "h"
+          },
+          {
+            "rank": "6",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "d"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "width": 1600,
+    "samples": 2202,
+    "failures": [],
+    "rounds": [
+      {
+        "version": 1,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "c"
+          },
+          {
+            "rank": "Q",
+            "suit": "c"
+          },
+          {
+            "rank": "A",
+            "suit": "d"
+          },
+          {
+            "rank": "10",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 2,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "5",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "Q",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "c"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          },
+          {
+            "rank": "10",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 3,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "A",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "9",
+            "suit": "h"
+          },
+          {
+            "rank": "A",
+            "suit": "c"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          },
+          {
+            "rank": "6",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 4,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "A",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "Q",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "h"
+          },
+          {
+            "rank": "5",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "2",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 5,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "10",
+            "suit": "s"
+          },
+          {
+            "rank": "K",
+            "suit": "s"
+          },
+          {
+            "rank": "J",
+            "suit": "h"
+          },
+          {
+            "rank": "Q",
+            "suit": "h"
+          },
+          {
+            "rank": "K",
+            "suit": "h"
+          },
+          {
+            "rank": "5",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "J",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 6,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "2",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "3",
+            "suit": "h"
+          },
+          {
+            "rank": "8",
+            "suit": "h"
+          },
+          {
+            "rank": "K",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "c"
+          },
+          {
+            "rank": "9",
+            "suit": "c"
+          },
+          {
+            "rank": "3",
+            "suit": "d"
+          },
+          {
+            "rank": "6",
+            "suit": "d"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "J",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 7,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "5",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "7",
+            "suit": "s"
+          },
+          {
+            "rank": "K",
+            "suit": "s"
+          },
+          {
+            "rank": "A",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "h"
+          },
+          {
+            "rank": "3",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "c"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "Q",
+            "suit": "d"
+          },
+          {
+            "rank": "K",
+            "suit": "d"
+          }
+        ]
+      },
+      {
+        "version": 8,
+        "received_count": 1,
+        "cards": [
+          {
+            "rank": "4",
+            "suit": "s"
+          },
+          {
+            "rank": "6",
+            "suit": "s"
+          },
+          {
+            "rank": "8",
+            "suit": "s"
+          },
+          {
+            "rank": "9",
+            "suit": "s"
+          },
+          {
+            "rank": "A",
+            "suit": "h"
+          },
+          {
+            "rank": "2",
+            "suit": "h"
+          },
+          {
+            "rank": "3",
+            "suit": "h"
+          },
+          {
+            "rank": "6",
+            "suit": "h"
+          },
+          {
+            "rank": "7",
+            "suit": "c"
+          },
+          {
+            "rank": "4",
+            "suit": "d"
+          },
+          {
+            "rank": "8",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          },
+          {
+            "rank": "9",
+            "suit": "d"
+          }
+        ]
+      }
+    ]
+  }
+]

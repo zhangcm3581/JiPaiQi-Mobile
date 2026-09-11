@@ -4,107 +4,47 @@ import org.junit.Test;
 import java.util.*;
 import static org.junit.Assert.*;
 
+/** Single-submit protocol, local visual phases and reconnect/restart boundaries. */
 public class RoundSessionTest {
-    List<String> hand(){List<String> h=new ArrayList<>();for(String rank:HandSnapshots.RANKS)h.add("spades:"+rank);return h;}
-    JSONObject wire(String type,int version,JSONObject payload)throws Exception{return new JSONObject().put("protocol_version",1).put("type",type).put("tenant_id","100001").put("round_version",version).put("payload",payload);}
-    void state(RoundSession s,int n)throws Exception{s.connection(true);s.receive(wire("round.state",n,new JSONObject().put("enabled",true).put("state","waiting")));}
-    RoundSession session()throws Exception{RoundSession s=new RoundSession("100001","test_device","",v->{});state(s,1);return s;}
-    void start(RoundSession s,long t)throws Exception{s.frame(t,false,false,List.of());s.frame(t+600,false,false,List.of());s.frame(t+800,true,false,hand());s.frame(t+1000,true,false,hand());}
+    List<String> hand(){List<String> h=new ArrayList<>();for(String r:HandSnapshots.RANKS)h.add("spades:"+r);return h;}
+    JSONObject wire(String type,int v,JSONObject p)throws Exception{return new JSONObject().put("protocol_version",1).put("type",type).put("tenant_id","100001").put("round_version",v).put("payload",p);}
+    void state(RoundSession s,int v)throws Exception{state(s,v,-1);}
+    void state(RoundSession s,int v,int binding)throws Exception{s.connection(true);JSONObject p=new JSONObject().put("enabled",true).put("state","waiting");if(binding>=0)p.put("bound_round_version",binding==0?JSONObject.NULL:binding);s.receive(wire("round.state",v,p));}
+    RoundSession session()throws Exception{RoundSession s=new RoundSession("100001","test_device","",x->{});state(s,1);return s;}
+    void start(RoundSession s,long t)throws Exception{start(s,t,hand());}
+    void start(RoundSession s,long t,List<String> cards)throws Exception{s.frame(t,false,false,List.of());s.frame(t+600,false,false,List.of());s.frame(t+800,true,false,cards);s.frame(t+1000,true,false,cards);}
+    void end(RoundSession s,long t)throws Exception{s.frame(t,false,true,List.of());s.frame(t+200,false,true,List.of());}
     JSONObject request(RoundSession s)throws Exception{return new JSONObject(s.outgoing().get(0));}
-    void ack(RoundSession s,JSONObject req)throws Exception{JSONObject p=new JSONObject().put("action",req.getString("type"));if(req.getString("type").equals("round.join"))p.put("bound_round_version",req.getInt("round_version"));s.receive(wire("ack",req.getInt("round_version"),p).put("reply_to",req.getString("request_id")));}
-    @Test public void joinAckRequiredAndRetriesAreIdentical()throws Exception{
-        RoundSession s=session();start(s,0);String first=s.outgoing().get(0);assertEquals("round.join",request(s).getString("type"));
-        s.frame(1200,true,false,hand());assertEquals(List.of(first),s.outgoing());s.connection(false);assertTrue(s.outgoing().isEmpty());state(s,1);assertEquals(first,s.outgoing().get(0));
-        ack(s,request(s));assertEquals("hand.submit",request(s).getString("type"));assertEquals(13,request(s).getJSONObject("payload").getJSONArray("cards").length());
-        ack(s,request(s));s.frame(1400,true,false,hand());assertTrue(s.outgoing().isEmpty());assertFalse(s.needsHands());
-    }
-    @Test public void halfRoundStartupShowsWaitingButNeverJoins()throws Exception{RoundSession s=session();for(int i=0;i<20;i++)s.frame(i*200,true,false,hand());assertTrue(s.outgoing().isEmpty());assertTrue(s.panel);assertNull(s.result);}
-    @Test public void panelDisappearanceAndRearrangementDoNotEndRound()throws Exception{
-        RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));ack(s,request(s));assertTrue(s.panel);
-        s.frame(1400,false,false,List.of());s.frame(1800,false,false,List.of());assertTrue(s.panel);s.frame(2000,false,false,List.of());assertFalse(s.panel);
-        s.frame(2200,true,false,hand());s.frame(2400,true,false,hand());assertTrue(s.panel);assertTrue(s.outgoing().isEmpty());
-    }
-    @Test public void realEndThenNextStartGetsExactlyNextVersion()throws Exception{
-        RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));ack(s,request(s));s.frame(1400,false,true,List.of());assertTrue(s.outgoing().isEmpty());s.frame(1600,false,true,List.of());assertEquals("round.end",request(s).getString("type"));ack(s,request(s));state(s,2);
-        start(s,1800);assertEquals(2,request(s).getInt("round_version"));assertEquals("end_then_start",request(s).getJSONObject("payload").getString("sync_basis"));assertEquals(1,request(s).getJSONObject("payload").getInt("previous_round_version"));
-    }
-    @Test public void serverVersionChangeCannotRelabelHand()throws Exception{RoundSession s=session();start(s,0);state(s,2);s.frame(1200,true,false,hand());assertEquals(1,request(s).getInt("round_version"));}
-    @Test public void invalidCaptureBreaksConfirmation()throws Exception{RoundSession s=session();s.frame(0,false,false,List.of());s.gap();s.frame(800,true,false,hand());s.frame(1000,true,false,hand());assertTrue(s.outgoing().isEmpty());}
-    @Test public void processLossStopsBusinessInsteadOfRejoining()throws Exception{String[] saved={""};RoundSession s=new RoundSession("100001","test_device","",v->saved[0]=v);state(s,1);start(s,0);RoundSession recovered=new RoundSession("100001","test_device",saved[0],v->{});state(recovered,1);start(recovered,2000);assertTrue(recovered.outgoing().isEmpty());assertTrue(recovered.panel);assertNull(recovered.result);}
-    @Test public void lateResultDoesNotShowHiddenPanel()throws Exception{RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));ack(s,request(s));s.frame(1400,false,false,List.of());s.frame(2000,false,false,List.of());JSONArray cards=new JSONArray();for(String rank:HandSnapshots.RANKS)cards.put(new JSONObject().put("suit","s").put("rank",rank).put("count",1));s.receive(wire("round.result",1,new JSONObject().put("cards",cards).put("remaining_count",13)));assertNotNull(s.result);assertFalse(s.panel);s.receive(wire("round.result",2,new JSONObject().put("cards",cards).put("remaining_count",13)));assertEquals(1,s.result.round);}
-    @Test public void duplicateCardsRetainedButThirdCopyRejected()throws Exception{List<String> h=hand();h.set(1,"spades:A");assertNotNull(RoundSession.identities(h));h.set(2,"spades:A");assertNull(RoundSession.identities(h));}
-    @Test public void storageFailurePreventsAnyBusinessSend()throws Exception {
-        RoundSession s=new RoundSession("100001","test_device","",v->{throw new IllegalStateException("disk full");});state(s,1);
-        try{start(s,0);fail("must stop on disk failure");}catch(IllegalStateException expected){}
-        assertTrue(s.outgoing().isEmpty());assertFalse(s.panel);
-    }
-    @Test public void administratorClearedBindingRearmsOnlyAfterFreshEvidence()throws Exception {
-        String[] saved={""};RoundSession s=new RoundSession("100001","test_device","",v->saved[0]=v);state(s,1);start(s,0);
-        RoundSession restored=new RoundSession("100001","test_device",saved[0],v->{});state(restored,1);
-        restored.receive(wire("round.state",1,new JSONObject().put("enabled",true).put("state","waiting").put("bound_round_version",JSONObject.NULL)));
-        restored.frame(0,true,false,hand());restored.frame(200,true,false,hand());assertTrue(restored.outgoing().isEmpty());
-        start(restored,400);assertEquals("round.join",request(restored).getString("type"));assertEquals("test_device",request(restored).getString("client_id"));
-    }
+    void ack(RoundSession s,JSONObject r)throws Exception{JSONObject p=new JSONObject().put("action",r.getString("type"));if(r.getString("type").equals("hand.submit"))p.put("start_event_id",r.getJSONObject("payload").getString("start_event_id"));s.receive(wire("ack",r.getInt("round_version"),p).put("reply_to",r.getString("request_id")));}
+    void error(RoundSession s,JSONObject r,String code)throws Exception{s.receive(wire("error",0,new JSONObject().put("code",code)).put("reply_to",r.getString("request_id")));}
+    JSONObject result(JSONObject submit)throws Exception{JSONArray cards=new JSONArray();for(String rank:HandSnapshots.RANKS)cards.put(new JSONObject().put("suit","s").put("rank",rank).put("count",1));return wire("round.result",submit.getInt("round_version"),new JSONObject().put("cards",cards).put("remaining_count",13).put("client_id","test_device").put("start_event_id",submit.getJSONObject("payload").getString("start_event_id")));}
 
-    @Test public void serverAdvanceClearsCardsButKeepsLocalArrangingPanel()throws Exception {
-        RoundSession s=session();start(s,0);assertTrue(s.panel);
-        state(s,2);assertTrue("本机仍摆牌时保留等待面板",s.panel);assertNull(s.result);
-        s.frame(1200,true,false,hand());s.frame(1400,true,false,hand());assertTrue(s.panel);assertNull(s.result);
-    }
-    @Test public void closedServerRoundKeepsOnlyEmptyLocalPanel()throws Exception {
-        RoundSession s=session();start(s,0);assertTrue(s.panel);
-        s.receive(wire("round.state",1,new JSONObject().put("enabled",true).put("state","closed")));
-        assertTrue(s.panel);assertNull(s.result);s.frame(1200,true,false,hand());s.frame(1400,true,false,hand());assertTrue(s.panel);assertNull(s.result);
-    }
-    @Test public void disabledTenantShowsNoCardsEvenAfterDisconnect()throws Exception {
-        RoundSession s=session();start(s,0);
-        s.receive(wire("round.state",1,new JSONObject().put("enabled",false).put("state","waiting")));
-        s.connection(false);s.frame(1200,true,false,hand());s.frame(1400,true,false,hand());assertTrue(s.panel);assertNull(s.result);
-    }
-
-    @Test public void shortDetectionDropoutsDoNotBlinkOrCreateNewRounds()throws Exception {
-        RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));ack(s,request(s));
-        for(long t=1400;t<10000;t+=800){s.frame(t,false,false,List.of());s.frame(t+200,false,false,List.of());assertTrue(s.panel);s.frame(t+400,true,false,List.of());s.frame(t+600,true,false,List.of());assertTrue(s.panel);assertTrue(s.outgoing().isEmpty());}
-    }
-
-    @Test public void scatteredAbsenceCannotArmANewRound()throws Exception {
-        RoundSession s=session();s.frame(0,false,false,List.of());s.frame(200,true,false,hand());s.frame(400,false,false,List.of());s.frame(600,true,false,hand());s.frame(800,false,false,List.of());s.frame(1000,true,false,hand());s.frame(1200,true,false,hand());assertTrue(s.outgoing().isEmpty());
-    }
-    @Test public void startWithoutAnyServerVersionShowsWaitingButDoesNotGuessBinding()throws Exception {
-        RoundSession s=new RoundSession("100001","test_device","",v->{});start(s,0);s.frame(1200,true,false,hand());
-        assertTrue("开局不等待网络才显示",s.panel);assertTrue(s.outgoing().isEmpty());state(s,1);assertTrue(s.panel);assertTrue("未知服务端版本的旧开局不可补绑",s.outgoing().isEmpty());
-        start(s,1400);s.frame(2600,true,false,hand());ack(s,request(s));assertEquals("hand.submit",request(s).getString("type"));
-    }
-    @Test public void delayedEndAckAndStateDoNotBlockNextRound()throws Exception {
-        RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));ack(s,request(s));
-        s.frame(1400,false,true,List.of());s.frame(1600,false,true,List.of());JSONObject end=request(s);
-        start(s,1800);s.frame(3000,true,false,hand());assertTrue(s.panel);assertNull(s.result);
-        state(s,2);ack(s,end);assertEquals("round.join",request(s).getString("type"));assertEquals(2,request(s).getInt("round_version"));ack(s,request(s));assertEquals("hand.submit",request(s).getString("type"));
-    }
-    @Test public void rejectedLateHandCanContinueAfterRealEnd()throws Exception {
-        RoundSession s=session();start(s,0);s.frame(1200,true,false,hand());ack(s,request(s));JSONObject submit=request(s);state(s,2);
-        s.receive(wire("error",0,new JSONObject().put("code","ROUND_CLOSED").put("message","已关闭")).put("reply_to",submit.getString("request_id")));
-        s.frame(1400,false,true,List.of());s.frame(1600,false,true,List.of());JSONObject end=request(s);
-        s.receive(wire("error",0,new JSONObject().put("code","ROUND_CLOSED")).put("reply_to",end.getString("request_id")));
-        start(s,1800);assertEquals("round.join",request(s).getString("type"));assertEquals(2,request(s).getInt("round_version"));
-    }
-
-    @Test public void firstOfflineStartCannotAdoptANewerVersion()throws Exception {
-        RoundSession s=session();s.connection(false);start(s,0);s.frame(1200,true,false,hand());state(s,2);
-        assertTrue("旧手牌不能借用重连后的版本",s.outgoing().isEmpty());assertTrue(s.panel);assertNull(s.result);
-    }
-    @Test public void lostJoinAckCanRecoverAfterLocalEndAndNextStart()throws Exception {
-        RoundSession s=session();start(s,0);JSONObject join=request(s);s.frame(1200,true,false,hand());
-        s.frame(1400,false,true,List.of());s.frame(1600,false,true,List.of());
-        start(s,1800);s.frame(3000,true,false,hand());state(s,2);
-        assertEquals("必须仍能重试原始join",join.toString(),request(s).toString());ack(s,join);
-        JSONObject end=request(s);assertEquals("round.end",end.getString("type"));
-        s.receive(wire("error",0,new JSONObject().put("code","ROUND_CLOSED")).put("reply_to",end.getString("request_id")));
-        JSONObject next=request(s);assertEquals("round.join",next.getString("type"));assertEquals(2,next.getInt("round_version"));ack(s,next);assertEquals("hand.submit",request(s).getString("type"));
-    }
-
-    @Test public void firstOfflineStartKeepsItsVersionWhenReconnectIsStillSameRound()throws Exception {
-        RoundSession s=session();s.connection(false);start(s,0);s.frame(1200,true,false,hand());state(s,1);JSONObject join=request(s);assertEquals(1,join.getInt("round_version"));ack(s,join);assertEquals("hand.submit",request(s).getString("type"));
-    }
-
+    @Test public void twoFramesSubmitImmediatelyWithoutAnyJoinOrAck()throws Exception{RoundSession s=session();start(s,0);assertEquals(1,s.outgoing().size());JSONObject r=request(s);assertEquals("hand.submit",r.getString("type"));assertEquals(13,r.getJSONObject("payload").getJSONArray("cards").length());assertFalse(r.getJSONObject("payload").getString("start_event_id").isEmpty());}
+    @Test public void rejectsIncompleteAndIllegalHandsUntilTwoValidFrames()throws Exception{for(int count:new int[]{0,12,14}){RoundSession s=session();List<String> h=new ArrayList<>(hand());if(count==14)h.add("spades:A");else h=new ArrayList<>(h.subList(0,count));start(s,0,h);assertTrue(s.outgoing().isEmpty());s.frame(1200,true,false,hand());assertTrue(s.outgoing().isEmpty());s.frame(1400,true,false,hand());assertEquals("hand.submit",request(s).getString("type"));}List<String> bad=hand();bad.set(1,"spades:A");assertNotNull(RoundSession.identities(bad));bad.set(2,"spades:A");assertNull(RoundSession.identities(bad));bad=hand();bad.set(0,"bad:A");assertNull(RoundSession.identities(bad));}
+    @Test public void changedOrMissingFrameBreaksHandConfirmation()throws Exception{RoundSession s=session();start(s,0,List.of());s.frame(1200,true,false,hand());s.frame(1400,true,false,List.of());s.frame(1600,true,false,hand());assertTrue(s.outgoing().isEmpty());s.frame(1800,true,false,hand());assertEquals(1,s.outgoing().size());}
+    @Test public void continuousStartDoesNotRepeatSubmission()throws Exception{RoundSession s=session();start(s,0);ack(s,request(s));for(int t=1200;t<10000;t+=200)s.frame(t,true,false,hand());assertTrue(s.outgoing().isEmpty());assertFalse(s.needsHands());}
+    @Test public void retriesKeepExactRequestAndRoundAcrossReconnect()throws Exception{RoundSession s=session();start(s,0);String original=s.outgoing().get(0);s.connection(false);assertTrue(s.outgoing().isEmpty());state(s,1);assertEquals(original,s.outgoing().get(0));state(s,2);assertEquals(original,s.outgoing().get(0));}
+    @Test public void initialMidRoundStartNeverUploads()throws Exception{RoundSession s=session();for(int i=0;i<20;i++)s.frame(i*200,true,false,hand());assertTrue(s.outgoing().isEmpty());assertTrue(s.panel);}
+    @Test public void noServerVersionNeverGuessesOrReusesOldVisualEvidence()throws Exception{RoundSession s=new RoundSession("100001","test_device","",v->{});start(s,0);assertTrue(s.outgoing().isEmpty());assertTrue(s.panel);state(s,1);assertTrue(s.outgoing().isEmpty());start(s,1200);assertEquals(1,request(s).getInt("round_version"));}
+    @Test public void roundIsFrozenAtFirstStartFrameBeforeHandConfirmation()throws Exception{RoundSession s=session();s.frame(0,false,false,List.of());s.frame(600,false,false,List.of());s.frame(800,true,false,hand());state(s,2);s.frame(1000,true,false,hand());assertTrue("old first frame cannot become a new round",s.outgoing().isEmpty());}
+    @Test public void versionChangeDuringRecognitionCannotRelabelCards()throws Exception{RoundSession s=session();start(s,0,List.of());state(s,2);s.frame(1200,true,false,hand());s.frame(1400,true,false,hand());assertTrue(s.outgoing().isEmpty());end(s,1600);start(s,2000);assertEquals(2,request(s).getInt("round_version"));}
+    @Test public void firstOfflineStartOnlyWorksIfServerStillSameVersion()throws Exception{for(int v:new int[]{1,2}){RoundSession s=session();s.connection(false);start(s,0);state(s,v);if(v==1)assertEquals(1,request(s).getInt("round_version"));else assertTrue(s.outgoing().isEmpty());}}
+    @Test public void displayDoesNotWaitForUploadAckButChecksResultIdentity()throws Exception{RoundSession s=session();start(s,0);JSONObject r=request(s);JSONObject wrong=result(r);wrong.getJSONObject("payload").put("start_event_id","old");s.receive(wrong);assertNull(s.result);wrong=result(r);wrong.getJSONObject("payload").put("client_id","someone_else");s.receive(wrong);assertNull(s.result);s.receive(result(r));assertNotNull(s.result);assertTrue(s.panel);}
+    @Test public void lateResultDoesNotReopenComparisonOrEndPanel()throws Exception{RoundSession s=session();start(s,0);JSONObject r=request(s);ack(s,r);s.frame(1200,false,false,List.of());s.frame(1800,false,false,List.of());assertFalse(s.panel);s.receive(result(r));assertNotNull(s.result);assertFalse(s.panel);end(s,2000);s.receive(result(r));assertNull(s.result);assertFalse(s.panel);}
+    @Test public void newRoundAndServerAdvanceClearOldResult()throws Exception{RoundSession s=session();start(s,0);JSONObject r=request(s);ack(s,r);s.receive(result(r));state(s,2);assertNull(s.result);assertTrue(s.panel);s.receive(result(r));assertNull(s.result);end(s,1200);error(s,request(s),"ROUND_CLOSED");start(s,1600);assertEquals(2,request(s).getInt("round_version"));assertNull(s.result);}
+    @Test public void shortDropoutsAndRearrangingDoNotCreateNewRound()throws Exception{RoundSession s=session();start(s,0);ack(s,request(s));for(long t=1200;t<5000;t+=800){s.frame(t,false,false,List.of());s.frame(t+200,false,false,List.of());assertTrue(s.panel);s.frame(t+400,true,false,List.of());s.frame(t+600,true,false,List.of());assertTrue(s.outgoing().isEmpty());}s.frame(5200,false,false,List.of());s.frame(5800,false,false,List.of());assertFalse(s.panel);s.frame(6000,true,false,List.of());s.frame(6200,true,false,List.of());assertTrue(s.panel);assertTrue(s.outgoing().isEmpty());}
+    @Test public void scatteredAbsenceAndCaptureGapsCannotArm()throws Exception{RoundSession s=session();s.frame(0,false,false,List.of());s.gap();s.frame(800,true,false,hand());s.frame(1000,true,false,hand());assertTrue(s.outgoing().isEmpty());for(int t=1200;t<4000;t+=400){s.frame(t,false,false,List.of());s.frame(t+200,true,false,hand());}assertTrue(s.outgoing().isEmpty());}
+    @Test public void endNeedsTwoFramesAndOnlySubmittedParticipantReportsIt()throws Exception{RoundSession empty=session();start(empty,0,List.of());end(empty,1200);assertTrue(empty.outgoing().isEmpty());RoundSession s=session();start(s,0);ack(s,request(s));s.frame(1200,false,true,List.of());assertTrue(s.outgoing().isEmpty());s.frame(1400,false,true,List.of());JSONObject e=request(s);assertEquals("round.end",e.getString("type"));s.frame(1600,false,true,List.of());assertEquals(e.toString(),request(s).toString());}
+    @Test public void lostUploadAckAfterEndIsRetriedBeforeEndRequest()throws Exception{RoundSession s=session();start(s,0);JSONObject upload=request(s);end(s,1200);start(s,1600);state(s,2);assertEquals(upload.toString(),request(s).toString());ack(s,upload);JSONObject e=request(s);assertEquals("round.end",e.getString("type"));error(s,e,"ROUND_CLOSED");assertEquals(2,request(s).getInt("round_version"));assertEquals("hand.submit",request(s).getString("type"));}
+    @Test public void staleRejectedUploadIsNotRelabeledAndCanContinueNextGame()throws Exception{RoundSession s=session();start(s,0);JSONObject upload=request(s);state(s,2);error(s,upload,"ROUND_CLOSED");assertTrue(s.outgoing().isEmpty());end(s,1200);start(s,1600);assertEquals(2,request(s).getInt("round_version"));assertNotEquals(upload.getString("request_id"),request(s).getString("request_id"));}
+    @Test public void delayedEndAckDoesNotLoseNextGame()throws Exception{RoundSession s=session();start(s,0);ack(s,request(s));end(s,1200);JSONObject e=request(s);start(s,1600);state(s,2);ack(s,e);assertEquals("hand.submit",request(s).getString("type"));assertEquals(2,request(s).getInt("round_version"));}
+    @Test public void returningIdAfterSkippedRoundsSubmitsDirectly()throws Exception{RoundSession s=session();start(s,0);ack(s,request(s));end(s,1200);ack(s,request(s));state(s,10,1);start(s,1600);assertEquals(10,request(s).getInt("round_version"));assertEquals("hand.submit",request(s).getString("type"));}
+    @Test public void emptyLocalHistoryWithRemoteOldBindingCanJoinNewGame()throws Exception{RoundSession s=new RoundSession("100001","test_device","",v->{});state(s,8,1);s.frame(0,true,false,hand());s.frame(200,true,false,hand());assertTrue(s.outgoing().isEmpty());start(s,400);assertEquals(8,request(s).getInt("round_version"));}
+    @Test public void restartWithSavedOrLostAckDiscardsOldHandWhenServerAdvanced()throws Exception{for(boolean acknowledge:new boolean[]{true,false}){String[] saved={""};RoundSession s=new RoundSession("100001","test_device","",v->saved[0]=v);state(s,1);start(s,0);String old=request(s).getString("request_id");if(acknowledge)ack(s,request(s));RoundSession restored=new RoundSession("100001","test_device",saved[0],v->{});state(restored,8,1);assertTrue(restored.outgoing().isEmpty());start(restored,0);assertEquals(8,request(restored).getInt("round_version"));assertNotEquals(old,request(restored).getString("request_id"));}}
+    @Test public void restartInCurrentAcceptedRoundWaitsForRealEnd()throws Exception{String[] saved={""};RoundSession s=new RoundSession("100001","test_device","",v->saved[0]=v);state(s,1);start(s,0);ack(s,request(s));RoundSession r=new RoundSession("100001","test_device",saved[0],v->{});state(r,1,1);start(r,0);assertTrue(r.outgoing().isEmpty());end(r,1200);assertEquals("round.end",request(r).getString("type"));}
+    @Test public void restoredLegacyJoinWithNoServerBindingRearmsFresh()throws Exception{JSONObject old=new JSONObject().put("tenant","100001").put("client","test_device").put("target",1).put("started",true).put("joining",true);RoundSession s=new RoundSession("100001","test_device",old.toString(),v->{});state(s,1,0);s.frame(0,true,false,hand());s.frame(200,true,false,hand());assertTrue(s.outgoing().isEmpty());start(s,400);assertEquals("hand.submit",request(s).getString("type"));}
+    @Test public void fatalErrorsStayBlocked()throws Exception{RoundSession s=session();s.registrationFailed("CLIENT_ID_IN_USE");end(s,0);start(s,400);assertTrue(s.outgoing().isEmpty());}
+    @Test public void storageFailureStopsSending()throws Exception{RoundSession s=new RoundSession("100001","test_device","",v->{throw new IllegalStateException("disk full");});state(s,1);try{start(s,0);fail();}catch(IllegalStateException expected){}assertTrue(s.outgoing().isEmpty());assertFalse(s.panel);}
+    @Test public void disabledOrClosedStateRejectsResult()throws Exception{for(boolean enabled:new boolean[]{true,false}){RoundSession s=session();start(s,0);JSONObject r=request(s);s.receive(wire("round.state",1,new JSONObject().put("enabled",enabled).put("state",enabled?"closed":"waiting")));s.receive(result(r));assertNull(s.result);}}
+    @Test public void malformedResultCannotOverwriteValidResult()throws Exception{RoundSession s=session();start(s,0);JSONObject r=request(s);s.receive(result(r));HandReply good=s.result;JSONObject bad=result(r);bad.getJSONObject("payload").put("remaining_count",12);try{s.receive(bad);fail();}catch(JSONException expected){}assertSame(good,s.result);}
 }

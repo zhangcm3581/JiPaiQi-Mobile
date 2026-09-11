@@ -1,0 +1,48 @@
+{
+  "baseline": {
+    "screen_to_result_ms": {
+      "mean_ms": 902.4763668333334,
+      "p95_ms": 980.838125,
+      "max_ms": 998.718834,
+      "min_ms": 765.494,
+      "over_2s": 0
+    },
+    "first_13_observed_to_result_ms": {
+      "mean_ms": 505.88364608333336,
+      "p95_ms": 567.615959,
+      "max_ms": 569.689375,
+      "min_ms": 434.375,
+      "over_2s": 0
+    },
+    "received_to_paint_ms": {
+      "mean_ms": 105.40859720833333,
+      "p95_ms": 167.219584,
+      "max_ms": 168.234375,
+      "min_ms": 39.600208,
+      "over_2s": 0
+    }
+  },
+  "optimized": {
+    "screen_to_result_ms": {
+      "mean_ms": 438.368677125,
+      "p95_ms": 548.925042,
+      "max_ms": 549.14775,
+      "min_ms": 281.285083,
+      "over_2s": 0
+    },
+    "first_13_observed_to_result_ms": {
+      "mean_ms": 205.79359729166666,
+      "p95_ms": 235.087959,
+      "max_ms": 235.714584,
+      "min_ms": 135.810167,
+      "over_2s": 0
+    },
+    "received_to_paint_ms": {
+      "mean_ms": 22.642658041666667,
+      "p95_ms": 30.173041,
+      "max_ms": 31.798417,
+      "min_ms": 12.78325,
+      "over_2s": 0
+    }
+  }
+}

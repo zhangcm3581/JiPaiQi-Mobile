@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 /** All session mutations run on capture worker. Retries resend exact persisted envelopes. */
 public final class RoundSocket implements AutoCloseable {
-    private final Handler worker;private final RoundSession session;private final String url;
+    private final Runnable onUpdate;private final Handler worker;private final RoundSession session;private final String url;
     private final OkHttpClient http=new OkHttpClient.Builder().connectTimeout(8,TimeUnit.SECONDS).readTimeout(0,TimeUnit.MILLISECONDS).build();
     private final java.util.Map<String,Long> sent=new java.util.HashMap<>();
     private WebSocket socket;private boolean closed,open;private long lastPing,lastRetry,lastInbound;
@@ -29,10 +29,12 @@ public final class RoundSocket implements AutoCloseable {
         return (scheme.equals("https")||scheme.equals("wss")?"wss":"ws")+"://"+u.getRawAuthority()+"/ws/client?tenant_id="+tenant+"&client_id="+client;
     }
     public RoundSocket(Handler worker,RoundSession session,String endpoint){this(worker,session,endpoint,15000,45000,2000);}
-    RoundSocket(Handler worker,RoundSession session,String endpoint,long heartbeatMs,long responseTimeoutMs,long reconnectMs){this.worker=worker;this.session=session;this.heartbeatMs=heartbeatMs;this.responseTimeoutMs=responseTimeoutMs;this.reconnectMs=reconnectMs;url=url(endpoint,session.tenant,session.client);connect();worker.post(tick);}
+    public RoundSocket(Handler worker,RoundSession session,String endpoint,Runnable onUpdate){this(worker,session,endpoint,15000,45000,2000,onUpdate);}
+    RoundSocket(Handler worker,RoundSession session,String endpoint,long heartbeatMs,long responseTimeoutMs,long reconnectMs){this(worker,session,endpoint,heartbeatMs,responseTimeoutMs,reconnectMs,()->{});}
+    private RoundSocket(Handler worker,RoundSession session,String endpoint,long heartbeatMs,long responseTimeoutMs,long reconnectMs,Runnable onUpdate){this.onUpdate=onUpdate;this.worker=worker;this.session=session;this.heartbeatMs=heartbeatMs;this.responseTimeoutMs=responseTimeoutMs;this.reconnectMs=reconnectMs;url=url(endpoint,session.tenant,session.client);connect();worker.post(tick);}
     private void connect(){if(closed)return;socket=http.newWebSocket(new Request.Builder().url(url).build(),new WebSocketListener(){
         @Override public void onOpen(WebSocket ws,Response r){worker.post(()->{if(closed||socket!=ws){ws.cancel();return;}open=true;sent.clear();session.connection(true);lastInbound=lastPing=android.os.SystemClock.elapsedRealtime();});}
-        @Override public void onMessage(WebSocket ws,String text){worker.post(()->{if(closed||socket!=ws)return;if(text.length()>262144){ws.cancel();return;}try{lastInbound=android.os.SystemClock.elapsedRealtime();JSONObject message=new JSONObject(text);session.receive(message);if(message.optString("type").equals("error")&&java.util.Set.of("TENANT_NOT_FOUND","TENANT_DISABLED","CLIENT_LIMIT").contains(message.getJSONObject("payload").optString("code"))){close();return;}flush();}catch(Exception e){session.status="服务器消息无效："+e.getMessage();}});}
+        @Override public void onMessage(WebSocket ws,String text){worker.post(()->{if(closed||socket!=ws)return;if(text.length()>262144){ws.cancel();return;}try{lastInbound=android.os.SystemClock.elapsedRealtime();JSONObject message=new JSONObject(text);session.receive(message);if(message.optString("type").equals("error")&&java.util.Set.of("TENANT_NOT_FOUND","TENANT_DISABLED","CLIENT_LIMIT").contains(message.getJSONObject("payload").optString("code"))){close();return;}flush();onUpdate.run();}catch(Exception e){session.status="服务器消息无效："+e.getMessage();}});}
         @Override public void onFailure(WebSocket ws,Throwable error,Response response){lost(ws);}
         @Override public void onClosing(WebSocket ws,int code,String reason){worker.post(()->{if(closed||socket!=ws)return;if(code==4001){session.registrationFailed("CLIENT_ID_IN_USE：客户端 ID 已被其他设备使用，请修改为不同 ID");close();}else{ws.close(code,reason);lost(ws);}});}
         @Override public void onClosed(WebSocket ws,int code,String reason){lost(ws);}

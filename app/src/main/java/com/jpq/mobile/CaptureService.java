@@ -36,8 +36,12 @@ public final class CaptureService extends Service {
     private final Runnable captureTick=new Runnable(){public void run(){
         if(closing||reader==null)return;
         long begin=SystemClock.elapsedRealtime();onImage(reader);
-        if(!closing)worker.postDelayed(this,Math.max(16,pack.timing.optLong("sample_interval_ms",200)-(SystemClock.elapsedRealtime()-begin)));
+        if(!closing)worker.postDelayed(this,Math.max(16,captureIntervalMs()-(SystemClock.elapsedRealtime()-begin)));
     }};
+    private long captureIntervalMs(){
+        long configured=pack.timing.optLong("sample_interval_ms",200);
+        return automatic&&observedStart&&!observedEnd&&roundSession!=null&&roundSession.needsHands()?Math.min(configured,80):configured;
+    }
     private final Runnable ticker=new Runnable(){public void run(){if(!closing){updateStrip();worker.post(CaptureService.this::publishPanel);if(strip!=null)strip.pulse((SystemClock.elapsedRealtime()/500)%2==0);main.postDelayed(this,250);}}};
     // Read the phase, reply and status together on the session's worker, then render on main.
     private void publishPanel(){
@@ -95,7 +99,7 @@ public final class CaptureService extends Service {
             if(!legacy.isEmpty()&&client.equals(new JSONObject(legacy).optString("client")))restored=legacy;
         }
         roundSession=new RoundSession(tenant,client,restored,value->{if(!pref.edit().putString(store,value).commit())throw new IllegalStateException("无法持久保存轮次");});
-        roundSocket=new RoundSocket(worker,roundSession,endpoint);
+        roundSocket=new RoundSocket(worker,roundSession,endpoint,this::publishPanel);
         identityConfigured=true;status=panelStatus="已保存 · 请点击启动";publishPanel();
     }
     public void reloadIdentity(){worker.post(()->{if(closing)return;try{configureIdentity();}catch(Exception error){fatal(error);}});}

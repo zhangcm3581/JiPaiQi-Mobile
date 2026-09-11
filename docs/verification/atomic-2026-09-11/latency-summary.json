@@ -1,0 +1,66 @@
+{
+  "endpoint": "http://127.0.0.1:18081",
+  "normal": {
+    "count": 24,
+    "mean_ms": 410.27334920833334,
+    "median_ms": 400.25075000000004,
+    "p95_ms": 600.402375,
+    "min_ms": 215.478292,
+    "max_ms": 600.682959,
+    "over_2000_ms": 0
+  },
+  "delayed": {
+    "count": 3,
+    "mean_ms": 2526.3369456666665,
+    "median_ms": 2520.372918,
+    "p95_ms": 2539.271793,
+    "min_ms": 2519.366126,
+    "max_ms": 2539.271793,
+    "over_2000_ms": 3
+  },
+  "request_to_result_ms": {
+    "count": 24,
+    "mean_ms": 431.31635608333335,
+    "median_ms": 419.90689599999996,
+    "p95_ms": 620.456083,
+    "min_ms": 243.027875,
+    "max_ms": 622.673667,
+    "over_2000_ms": 0
+  },
+  "screen_to_empty_panel_ms": {
+    "count": 24,
+    "mean_ms": 390.480543625,
+    "median_ms": 384.6599585,
+    "p95_ms": 568.619667,
+    "min_ms": 201.996208,
+    "max_ms": 585.710417,
+    "over_2000_ms": 0
+  },
+  "first_13_observed_to_result_ms": {
+    "count": 24,
+    "mean_ms": 162.79960595833333,
+    "median_ms": 179.597208,
+    "p95_ms": 184.74675,
+    "min_ms": 84.369125,
+    "max_ms": 196.065751,
+    "over_2000_ms": 0
+  },
+  "received_to_paint_ms": {
+    "count": 24,
+    "mean_ms": 22.468008791666666,
+    "median_ms": 24.059458499999998,
+    "p95_ms": 28.214125,
+    "min_ms": 11.818958,
+    "max_ms": 30.538625,
+    "over_2000_ms": 0
+  },
+  "late_peer_send_to_paint": {
+    "count": 3,
+    "mean_ms": 40.301014,
+    "median_ms": 38.266583,
+    "p95_ms": 48.693334,
+    "min_ms": 33.943125,
+    "max_ms": 48.693334,
+    "over_2000_ms": 0
+  }
+}

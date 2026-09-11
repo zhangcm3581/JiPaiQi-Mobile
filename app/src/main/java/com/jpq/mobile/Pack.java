@@ -106,10 +106,10 @@ public final class Pack {
         if(!dir.isDirectory())try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}
         Pack current=new Pack(dir);
         String predecessor;
-        try(InputStream in=c.getAssets().open("default-pack-predecessor.sha256")){byte[] value=new byte[128];int n=in.read(value);predecessor=n<0?"":new String(value,0,n,StandardCharsets.UTF_8).trim();}
+        try(InputStream in=c.getAssets().open("default-pack-predecessor.sha256")){byte[] value=new byte[4096];int n=0,count;while(n<value.length&&(count=in.read(value,n,value.length-n))>0)n+=count;predecessor=new String(value,0,n,StandardCharsets.UTF_8).trim();}
         catch(FileNotFoundException absent){return current;}
         // Upgrade only our unchanged previous bundle; never overwrite an operator's edited pack.
-        if(predecessor.matches("[0-9a-f]{64}")&&predecessor.equals(fingerprint(dir)))try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}
+        if(Arrays.stream(predecessor.split("\\s+")).filter(x->x.matches("[0-9a-f]{64}")).anyMatch(fingerprint(dir)::equals))try(InputStream in=c.getAssets().open("default-pack.zip")){return install(c,in);}
         return current;
     }
     private static String fingerprint(File dir)throws Exception{

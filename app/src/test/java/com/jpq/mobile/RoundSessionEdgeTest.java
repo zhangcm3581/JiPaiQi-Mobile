@@ -6,7 +6,7 @@ import static org.junit.Assert.*;
 
 public class RoundSessionEdgeTest {
     final RoundSessionTest f=new RoundSessionTest();
-    RoundSession joined()throws Exception{RoundSession s=f.session();s.frame(0,false,false,List.of());s.frame(600,false,false,List.of());s.frame(800,true,false,List.of());s.frame(1000,true,false,List.of());f.ack(s,f.request(s));assertTrue(s.outgoing().isEmpty());return s;}
+    RoundSession joined()throws Exception{RoundSession s=f.session();s.frame(0,false,false,List.of());s.frame(600,false,false,List.of());s.frame(800,true,false,List.of());s.frame(1000,true,false,List.of());assertTrue(s.outgoing().isEmpty());return s;}
     @Test public void everyIncompleteAndOversizeHandCannotUpload()throws Exception {
         for(int n=0;n<=104;n++){if(n==13)continue;RoundSession s=joined();List<String> input=new ArrayList<>();for(int i=0;i<n;i++)input.add("spades:"+HandSnapshots.RANKS.get(i%13));
             for(int i=0;i<10;i++)s.frame(1200+i*200,true,false,input);assertTrue("size="+n,s.outgoing().isEmpty());
@@ -40,12 +40,12 @@ public class RoundSessionEdgeTest {
     }
     JSONObject result(int n)throws Exception{JSONArray cards=new JSONArray();for(int i=0;i<n;i++)cards.put(new JSONObject().put("suit","s").put("rank",HandSnapshots.RANKS.get(i%13)).put("count",1));return new JSONObject().put("remaining_count",n).put("cards",cards);}
     @Test public void resultResetsAndLateMessagesNeverLeakAcrossRounds()throws Exception {
-        RoundSession s=joined();s.frame(1200,true,false,f.hand());s.frame(1400,true,false,f.hand());f.ack(s,f.request(s));s.receive(f.wire("round.result",1,result(13)));assertNotNull(s.result);assertEquals(13,s.result.totalCount);
-        s.frame(1600,false,false,List.of());s.frame(2200,false,false,List.of());assertFalse(s.panel);s.receive(f.wire("round.result",1,result(13)));assertFalse(s.panel);
+        RoundSession s=joined();s.frame(1200,true,false,f.hand());s.frame(1400,true,false,f.hand());JSONObject accepted=f.request(s);JSONObject message=f.result(accepted);f.ack(s,accepted);s.receive(message);assertNotNull(s.result);assertEquals(13,s.result.totalCount);
+        s.frame(1600,false,false,List.of());s.frame(2200,false,false,List.of());assertFalse(s.panel);s.receive(message);assertFalse(s.panel);
         s.frame(2400,false,true,List.of());s.frame(2600,false,true,List.of());assertNull(s.result);assertFalse(s.panel);f.ack(s,f.request(s));f.state(s,2);f.start(s,2800);assertTrue(s.panel);assertNull(s.result);f.ack(s,f.request(s));
         s.receive(f.wire("round.result",1,result(13)));assertNull("stale result",s.result);s.receive(f.wire("round.result",3,result(13)));assertNull("future result",s.result);s.receive(f.wire("round.result",2,result(13)).put("tenant_id","100002"));assertNull("wrong tenant",s.result);
     }
     @Test public void malformedResultNeverFillsPanel()throws Exception {
-        for(int count:new int[]{0,1,12,14}){RoundSession s=joined();try{s.receive(f.wire("round.result",1,result(count)));fail("invalid result "+count);}catch(JSONException expected){}assertNull(s.result);}
+        for(int count:new int[]{0,1,12,14}){RoundSession s=joined();s.frame(1200,true,false,f.hand());s.frame(1400,true,false,f.hand());JSONObject message=f.result(f.request(s));message.getJSONObject("payload").put("remaining_count",count);try{s.receive(message);fail("invalid result "+count);}catch(JSONException expected){}assertNull(s.result);}
     }
 }

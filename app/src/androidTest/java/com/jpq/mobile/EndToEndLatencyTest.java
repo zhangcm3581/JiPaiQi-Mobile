@@ -41,6 +41,7 @@ public class EndToEndLatencyTest extends CaptureFlowTest {
         if(Build.VERSION.SDK_INT>=33)target.registerReceiver(presented,new IntentFilter("com.jpq.mobile.test.PRESENTED"),Context.RECEIVER_EXPORTED);else target.registerReceiver(presented,new IntentFilter("com.jpq.mobile.test.PRESENTED"));
         View[] gridRef=new View[1];ViewTreeObserver.OnPreDrawListener[] listenerRef=new ViewTreeObserver.OnPreDrawListener[1];
         try {
+            try(var in=target.getAssets().open("default-pack.zip")){Pack.install(target,in);}
             launchAndConsent(target,device);fixture(target,"predeal");Thread.sleep(1200);inst.runOnMainSync(()->CaptureService.current.toggle());
             await("capture connected",()->CaptureService.current.status.startsWith("连接成功"));
             CaptureService service=CaptureService.current;RoundSession session=(RoundSession)field(service,"roundSession");HandOverlay overlay=(HandOverlay)field(service,"handOverlay");View grid=(View)field(overlay,"grid");gridRef[0]=grid;

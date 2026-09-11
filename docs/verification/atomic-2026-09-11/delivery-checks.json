@@ -1,0 +1,10 @@
+{
+  "version": "0.4.20",
+  "version_code": 27,
+  "sha256": "4d326c7eea1323a87bf11ef2525d7b26d403aa73dbc4bef48a6e9fb00d9d0f7a",
+  "original_data_files_verified": 71,
+  "original_packages_preserved": 55,
+  "signing_certificate_matches": true,
+  "production_endpoint_verified": true,
+  "installed_force_stopped": true
+}

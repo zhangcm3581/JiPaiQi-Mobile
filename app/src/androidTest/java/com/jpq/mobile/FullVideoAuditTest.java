@@ -41,12 +41,14 @@ public class FullVideoAuditTest {
 
     @Test public void bundledUpgradePreservesCustomPacks()throws Exception {
         var inst=InstrumentationRegistry.getInstrumentation();var target=inst.getTargetContext();
-        try(var in=inst.getContext().getAssets().open("shisanshui/pack-1.1.zip")){Pack.install(target,in);}
-        Pack upgraded=Pack.current(target);assertEquals("1.2.0",upgraded.json.getJSONObject("package").getString("version"));assertEquals(57,upgraded.resources.size());
-        try(var in=inst.getContext().getAssets().open("shisanshui/pack-1.1.zip")){Pack.install(target,in);}
+        for(String archive:List.of("shisanshui/pack-1.1.zip","shisanshui/pack-1.2.zip")){
+        try(var in=inst.getContext().getAssets().open(archive)){Pack.install(target,in);}
+        Pack upgraded=Pack.current(target);assertEquals("1.3.0",upgraded.json.getJSONObject("package").getString("version"));assertEquals(57,upgraded.resources.size());
+        try(var in=inst.getContext().getAssets().open(archive)){Pack.install(target,in);}
         java.io.File manifest=new java.io.File(target.getFilesDir(),"pack/manifest.json");var edited=new org.json.JSONObject(new String(java.nio.file.Files.readAllBytes(manifest.toPath()),java.nio.charset.StandardCharsets.UTF_8));
         edited.getJSONArray("regions").getJSONObject(0).put("name","保留用户自定义区域");String saved=edited.toString();java.nio.file.Files.write(manifest.toPath(),saved.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        assertEquals("1.1.0",Pack.current(target).json.getJSONObject("package").getString("version"));assertEquals(saved,new String(java.nio.file.Files.readAllBytes(manifest.toPath()),java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(archive.contains("1.1")?"1.1.0":"1.2.0",Pack.current(target).json.getJSONObject("package").getString("version"));assertEquals(saved,new String(java.nio.file.Files.readAllBytes(manifest.toPath()),java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
 
     @androidx.test.filters.LargeTest
