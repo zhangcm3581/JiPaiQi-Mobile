@@ -82,5 +82,21 @@ public class HandOverlayDeviceTest {
             });
         }finally{inst.runOnMainSync(()->holder[0].close());device.pressHome();}
     }
+    @Test public void compactGridShowsAllRanksWithoutFooter()throws Exception {
+        var inst=InstrumentationRegistry.getInstrumentation();Context target=inst.getTargetContext();
+        assertTrue(Settings.canDrawOverlays(target));UiDevice device=UiDevice.getInstance(inst);
+        target.startActivity(new Intent().setClassName("com.jpq.mobile.test","com.jpq.mobile.FixtureActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("fixture","shisanshui/yellow_k"));SystemClock.sleep(800);
+        JSONArray cards=new JSONArray();for(String rank:HandSnapshots.RANKS)cards.put(new JSONObject().put("rank",rank).put("suit","diamonds").put("count",1));
+        HandReply reply=new HandReply(new JSONObject().put("schema","jpq.hand-result/1").put("event_id","display-test").put("round_id",1).put("cards",cards));
+        HandOverlay[] holder=new HandOverlay[1];
+        try {
+            inst.runOnMainSync(()->{holder[0]=new HandOverlay(target,new HandOverlay.Actions(){public void toggle(){}public void settings(){}public void help(){}public void exit(){}});holder[0].update(true,reply,"THIS FOOTER MUST NOT APPEAR",true);});
+            SystemClock.sleep(400);Rect panel=holder[0].bounds().get(1);
+            assertEquals(Math.round(Math.round(device.getDisplayWidth()*.425f)*13f/14f),panel.width());
+            assertEquals(Math.round(device.getDisplayHeight()*.207f),panel.height());
+            save("compact-grid-0.4.24.png");
+            System.out.println("GRID width="+panel.width()+" height="+panel.height()+" row="+panel.height()/8f);
+        }finally{if(holder[0]!=null)inst.runOnMainSync(()->holder[0].close());device.pressHome();}
+    }
     void save(String name)throws Exception{var inst=InstrumentationRegistry.getInstrumentation();try(var out=new FileOutputStream(new File(inst.getTargetContext().getFilesDir(),name))){Bitmap b=inst.getUiAutomation().takeScreenshot();assertNotNull(b);b.compress(Bitmap.CompressFormat.PNG,100,out);b.recycle();}}
 }

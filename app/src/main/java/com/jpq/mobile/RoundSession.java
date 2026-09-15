@@ -13,6 +13,8 @@ public final class RoundSession {
     private boolean online,enabled,receivedState,closedState,armed,joining,ended,blocked,submitted,started,waitingStart;
     private boolean recovering;
     private int recoveryBinding=-1;
+    private boolean serverWaiting,serverBoundary;
+    private String lastHand="",retiredCandidate="";
     private long clearSince=-1,absentSince=-1,lastFrame=-1;
     private String candidate="",startEvent="",waitingCandidate="";
     private JSONArray stableCards,waitingCards;
@@ -27,20 +29,20 @@ public final class RoundSession {
         if(restored!=null&&!restored.isEmpty()) {
             JSONObject p=new JSONObject(restored);
             if(!tenant.equals(p.getString("tenant"))||!client.equals(p.getString("client")))throw new JSONException("恢复记录身份不一致");
-            target=p.optInt("target");bound=p.optInt("bound");round=target;started=p.optBoolean("started");ended=p.optBoolean("ended");joining=p.optBoolean("joining");submitted=p.optBoolean("submitted");startEvent=p.optString("start_event");
+            lastHand=p.optString("last_hand");retiredCandidate=p.optString("retired_candidate");target=p.optInt("target");bound=p.optInt("bound");round=target;started=p.optBoolean("started");ended=p.optBoolean("ended");joining=p.optBoolean("joining");submitted=p.optBoolean("submitted");startEvent=p.optString("start_event");
             JSONArray requests=p.optJSONArray("pending");if(requests!=null)for(int i=0;i<requests.length();i++){JSONObject m=requests.getJSONObject(i);pending.put(m.getString("request_id"),m);}
             // Process loss destroys continuity. Keep original requests for audit, never infer a new round.
             blocked=started||!pending.isEmpty();recovering=blocked;if(blocked)status="重启恢复：等待结束画面，再从下一局上报";
         }
     }
-    private void persist(){try{save.accept(new JSONObject().put("tenant",tenant).put("client",client).put("target",target).put("bound",bound).put("started",started).put("ended",ended).put("joining",joining).put("submitted",submitted).put("start_event",startEvent).put("pending",new JSONArray(pending.values())).toString());}catch(Exception e){recovering=false;blocked=true;panel=false;status="无法保存轮次，停止上传";throw new IllegalStateException(e);}}
+    private void persist(){try{save.accept(new JSONObject().put("tenant",tenant).put("client",client).put("target",target).put("bound",bound).put("started",started).put("ended",ended).put("joining",joining).put("submitted",submitted).put("start_event",startEvent).put("last_hand",lastHand).put("retired_candidate",retiredCandidate).put("pending",new JSONArray(pending.values())).toString());}catch(Exception e){recovering=false;blocked=true;panel=false;status="无法保存轮次，停止上传";throw new IllegalStateException(e);}}
     public JSONObject message(String type,Integer version,JSONObject payload)throws JSONException{return new JSONObject().put("protocol_version",1).put("type",type).put("request_id",UUID.randomUUID().toString()).put("tenant_id",tenant).put("client_id",client).put("round_version",version==null?JSONObject.NULL:version).put("payload",payload);}
     private void enqueue(String type,int version,JSONObject payload)throws JSONException{JSONObject m=message(type,version,payload);pending.put(m.getString("request_id"),m);persist();}
     public List<String> outgoing(){if(!online||!receivedState||!enabled||blocked)return List.of();List<String> out=new ArrayList<>();for(JSONObject m:pending.values())out.add(m.toString());return out;}
-    public void connection(boolean value){online=value;receivedState=false;if(!value&&!blocked)status="连接中断，保留本局请求";}
-    public boolean needsHands(){return !blocked&&(!started||ended||(!submitted&&stableCards==null));}
+    public void connection(boolean value){if(!value)gap();online=value;receivedState=false;if(!value&&!blocked)status="连接中断，保留本局请求";}
+    public boolean needsHands(){return !blocked&&(!started||ended||serverWaiting||(!submitted&&stableCards==null));}
     private void clearWaiting(){waitingTarget=0;waitingStart=false;waitingCards=null;waitingCandidate="";waitingHandStreak=0;}
-    public void gap(){armed=false;clearSince=absentSince=lastFrame=-1;starts=ends=handStreak=0;candidate="";clearWaiting();panel=false;}
+    public void gap(){serverBoundary=false;armed=false;clearSince=absentSince=lastFrame=-1;starts=ends=handStreak=0;candidate="";clearWaiting();panel=false;}
     private void fail(String text){recovering=false;blocked=true;result=null;status=text;persist();}
     public void registrationFailed(String text){fail(text);}
     private void requireRecovery(){
@@ -49,6 +51,7 @@ public final class RoundSession {
     }
     public void frame(long now,boolean start,boolean end,List<String> cards)throws JSONException {
         if(lastFrame>=0&&now-lastFrame>1500)gap();lastFrame=now;
+        if(serverWaiting){awaitServerRound(now,start,end,cards);return;}
         // Visibility belongs to the local game phase, even when network synchronization waits.
         if(end){
             // Even an unconfirmed end candidate interrupts consecutive hand evidence.
@@ -87,6 +90,29 @@ public final class RoundSession {
         String sig=valid.toString();handStreak=sig.equals(candidate)?handStreak+1:1;candidate=sig;
         if(handStreak>=2){stableCards=valid;submit();}
     }
+    /** Server advance closes every local participant, including ones that missed all boundary frames. */
+    private void serverFinished(int next)throws JSONException {
+        if(waitingCards!=null)retiredCandidate=waitingCards.toString();else if(!candidate.isEmpty())retiredCandidate=candidate;
+        closedThrough=Math.max(closedThrough,next-1);
+        pending.entrySet().removeIf(e->e.getValue().optInt("round_version")<next);
+        result=null;stableCards=null;joining=submitted=false;ended=true;recovering=blocked=false;
+        gap();serverWaiting=true;serverBoundary=false;
+        status="本轮已结束，等待下一局手牌";persist();
+    }
+    private void awaitServerRound(long now,boolean start,boolean end,List<String> cards)throws JSONException {
+        if(!online||!receivedState||!enabled||closedState||blocked){gap();return;}
+        if(end){panel=false;handStreak=starts=0;candidate="";clearSince=-1;if(++ends>=2)serverBoundary=true;return;}
+        ends=0;
+        if(!start){panel=false;handStreak=starts=0;candidate="";if(clearSince<0)clearSince=now;if(now-clearSince>=600)serverBoundary=true;return;}
+        clearSince=-1;starts++;
+        JSONArray valid=identities(cards);String sig=valid==null?"":valid.toString();
+        // Without a local transition, unchanged old cards are never relabelled into a new version.
+        if(valid==null||(!serverBoundary&&(lastHand.isEmpty()||sig.equals(lastHand)||sig.equals(retiredCandidate)))){handStreak=0;candidate="";return;}
+        handStreak=sig.equals(candidate)?handStreak+1:1;candidate=sig;
+        if(handStreak<2)return;
+        serverWaiting=false;panel=true;waitingStart=true;waitingTarget=known;waitingCards=valid;
+        waitingCandidate=sig;waitingHandStreak=2;tryBegin();
+    }
     /** Recovery uses an authoritative binding plus real end evidence, never old cards. */
     private void recoverAtBoundary(boolean freshEnd)throws JSONException {
         if(!recovering||!online||!receivedState||!enabled||closedState||recoveryBinding<1)return;
@@ -123,11 +149,13 @@ public final class RoundSession {
         for(String token:cards){String[] a=token.split(":",-1);if(a.length!=2||!HandSnapshots.SUITS.contains(a[0])||!HandSnapshots.RANKS.contains(a[1]))return null;counts.merge(token,1,Integer::sum);if(counts.get(token)>2)return null;}
         JSONArray out=new JSONArray();for(var e:counts.entrySet()){String[] a=e.getKey().split(":");String suit=List.of("s","h","c","d").get(HandSnapshots.SUITS.indexOf(a[0]));for(int i=0;i<e.getValue();i++)out.put(new JSONObject().put("rank",a[1]).put("suit",suit));}return out;
     }
-    private void submit()throws JSONException{if(ended||submitted||stableCards==null||known!=target||closedState||closedThrough>=target)return;submitted=true;joining=true;enqueue("hand.submit",target,new JSONObject().put("start_event_id",startEvent).put("cards",stableCards));status="手牌已确认，等待服务器";}
+    private void submit()throws JSONException{if(ended||submitted||stableCards==null||known!=target||closedState||closedThrough>=target)return;lastHand=stableCards.toString();retiredCandidate="";submitted=true;joining=true;enqueue("hand.submit",target,new JSONObject().put("start_event_id",startEvent).put("cards",stableCards));status="手牌已确认，等待服务器";}
     public void receive(JSONObject m)throws JSONException {
         if(m.optInt("protocol_version")!=1||!tenant.equals(m.optString("tenant_id")))return;
         String type=m.optString("type");JSONObject p=m.getJSONObject("payload");int version=m.optInt("round_version");
         if(type.equals("round.state")){
+            if(version<known)return;
+            int previousKnown=known;
             if(known==0&&!started){
                 // Before the first server snapshot, visual evidence has no trustworthy version.
                 // Keep the local panel visible, but require a fresh pre-deal -> start transition.
@@ -143,9 +171,12 @@ public final class RoundSession {
             closedState=p.optString("state").equals("closed");
             recoveryBinding=p.has("bound_round_version")&&!p.isNull("bound_round_version")?p.optInt("bound_round_version",-1):-1;
             if(!started&&!blocked&&recoveryBinding>0)requireRecovery();
+            if(enabled&&started&&target>0&&version>target&&version>previousKnown&&(!blocked||recovering)){
+                serverFinished(version);return;
+            }
             recoverAtBoundary(false);
             if(!enabled){result=null;status="租户已停用";return;}
-            if(closedState){closedThrough=Math.max(closedThrough,version);result=null;status="本轮已关闭，等待本机结束与新局";return;}
+            if(closedState){if(started&&(!blocked||recovering))serverFinished(version+1);else{closedThrough=Math.max(closedThrough,version);result=null;panel=false;}return;}
             if(!blocked&&started&&!ended&&target!=known){status="服务端已换轮，等待本机真实结束";result=null;}
             else if(!blocked&&!started)status="连接成功，请等待发牌前→开局";
             tryBegin();return;
@@ -161,6 +192,7 @@ public final class RoundSession {
                 else status="手牌已上报，等待其他设备";
             }else{pending.remove(reply);persist();}
         }else if(type.equals("error")){
+            if(!reply.isEmpty()&&request==null)return; // A retired request cannot block a newer round.
             String code=p.optString("code");
             if(request!=null&&code.equals("ROUND_CLOSED")&&(request.optString("type").equals("round.end")||request.optString("type").equals("hand.submit"))){closedThrough=Math.max(closedThrough,request.optInt("round_version"));result=null;pending.remove(reply);if(request.optString("type").equals("hand.submit")){joining=false;submitted=false;}persist();tryBegin();return;}
             if(request!=null&&code.equals("SYNC_REQUIRED")){requireRecovery();return;}

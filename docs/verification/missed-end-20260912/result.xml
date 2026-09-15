@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.jpq.mobile.MissedEndDiagnosticTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-09-12T07:28:32" hostname="zhangcaimingdeMac-mini.local" time="0.008">
+  <properties/>
+  <testcase name="compareNormalAndMissedEndAcrossTwoMoreGames" classname="com.jpq.mobile.MissedEndDiagnosticTest" time="0.008"/>
+  <system-out><![CDATA[missEnd=false round=2 requests=1 needsHands=false status=手牌已确认，等待服务器
+missEnd=false round=3 requests=1 needsHands=false status=手牌已确认，等待服务器
+missEnd=true round=2 requests=0 needsHands=false status=服务端已换轮，等待本机真实结束
+missEnd=true round=3 requests=0 needsHands=false status=服务端已换轮，等待本机真实结束
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

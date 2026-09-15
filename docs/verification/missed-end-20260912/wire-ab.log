@@ -1,0 +1,10 @@
+PASS version=7 seven uploads and exact results; replaced=false missed-end-client=none
+PASS version=8 seven uploads and exact results; replaced=true missed-end-client=1
+Exception in thread "main" java.lang.AssertionError: timeout: [手牌已上报，等待其他设备, 服务端已换轮，等待本机真实结束, 手牌已上报，等待其他设备, 手牌已上报，等待其他设备, 手牌已上报，等待其他设备, 手牌已上报，等待其他设备, 本局结束，等待下一局, 手牌已上报，等待其他设备]
+	at com.jpq.mobile.RestartRecoveryProbe.until(RestartRecoveryProbe.java:35)
+	at com.jpq.mobile.MissedEndWireProbe.main(MissedEndWireProbe.java:19)
+EXPECTED: old code failed recovery
+PASS version=7 seven uploads and exact results; replaced=false missed-end-client=none
+PASS version=8 seven uploads and exact results; replaced=true missed-end-client=1
+PASS version=9 seven uploads and exact results; replaced=true missed-end-client=1
+PASS version=10 seven uploads and exact results; replaced=true missed-end-client=1

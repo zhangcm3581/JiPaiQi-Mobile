@@ -39,13 +39,13 @@ public class RoundSocketDeviceTest {
             on(h,()->{RoundSession s=sessions.get(0);s.frame(2200,true,false,List.of());s.frame(2400,true,false,List.of());assertTrue("回到摆牌仍显示，无需13张留在底部",s.panel);assertNotNull(s.result);assertTrue(s.outgoing().isEmpty());
                 s.frame(2600,false,true,List.of());s.frame(2800,false,true,List.of());sockets.get(0).flush();});
             await("一台结束后，其余设备清空旧结果",()->sessions.subList(1,7).stream().allMatch(s->s.result==null));
-            on(h,()->{assertFalse(sessions.get(0).panel);for(int i=1;i<7;i++){RoundSession s=sessions.get(i);assertTrue("服务器换轮不能隐藏本机摆牌面板",s.panel);s.frame(1400,false,true,List.of());s.frame(1600,false,true,List.of());sockets.get(i).flush();}});
+            on(h,()->{assertFalse(sessions.get(0).panel);for(int i=1;i<7;i++){RoundSession s=sessions.get(i);assertFalse("服务器结束立即隐藏所有面板",s.panel);assertTrue(s.needsHands());}});
             // Other devices ending the already closed old round must recover without ID reset.
             Thread.sleep(600);on(h,()->{for(RoundSession s:sessions)assertTrue(s.status,s.outgoing().isEmpty());
-                for(int i=0;i<7;i++){RoundSession s=sessions.get(i);List<String> hand=deck.subList(i*13,i*13+13);s.frame(3000,false,false,List.of());s.frame(3600,false,false,List.of());s.frame(3800,true,false,hand);s.frame(4000,true,false,hand);s.frame(4200,true,false,hand);sockets.get(i).flush();}});
+                for(int i=0;i<7;i++){RoundSession s=sessions.get(i);int offset=((i+1)%7)*13;List<String> hand=deck.subList(offset,offset+13);s.frame(3800,true,false,hand);s.frame(4000,true,false,hand);s.frame(4200,true,false,hand);sockets.get(i).flush();}});
             await("七台连续第二局返回结果",()->sessions.stream().allMatch(s->s.round==2&&s.result!=null));
             on(h,()->{for(RoundSession s:sessions){assertTrue(s.panel);int count=0;for(int row=0;row<8;row++)for(int col=0;col<13;col++)if(s.result.occupied(row,col))count++;assertEquals(13,count);}});
-            System.out.println("7 real Android WebSockets x 2 rounds; delayed result/early end/local visibility verified");
+            System.out.println("7 real Android WebSockets x 2 rounds; six clients missed end AND blank transition; server reset and exact 13 painted cells verified");
         }finally{on(h,()->{for(RoundSocket socket:sockets)socket.close();});t.quitSafely();http.dispatcher().executorService().shutdown();}
     }
     void verifyVisibleGrid(HandReply reply,List<String> expected)throws Exception {
@@ -63,7 +63,7 @@ public class RoundSocketDeviceTest {
                     String token=HandSnapshots.SUITS.get(row/2)+":"+HandSnapshots.RANKS.get(col);
                     boolean wanted=java.util.Collections.frequency(expected,token)>(row%2);
                     assertEquals("server cell "+token+" copy "+row%2,wanted,reply.occupied(row,col));
-                    float cw=panel.width()/14f,rh=panel.height()*.9f/8;
+                    float cw=panel.width()/14f,rh=panel.height()/8f;
                     int x0=panel.left+(int)((col+1)*cw)+2,x1=panel.left+(int)((col+2)*cw)-2;
                     int y0=panel.top+(int)(row*rh)+2,y1=panel.top+(int)((row+1)*rh)-2;
                     boolean ink=false;
