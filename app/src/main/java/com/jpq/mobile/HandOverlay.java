@@ -192,7 +192,7 @@ public final class HandOverlay implements AutoCloseable {
     private final class Grid extends View {
         final Paint p=new Paint(3);final Rect rankInk=new Rect();Grid(){super(context);setContentDescription("服务器返回的花色点数面板，固定左上角，点击隐藏");}
         @Override public boolean performClick(){super.performClick();return true;}
-        @Override protected void onDraw(Canvas c){super.onDraw(c);float header=0,row=getHeight()/8f,col=getWidth()/14f;
+        @Override protected void onDraw(Canvas c){super.onDraw(c);int rows=reply!=null&&!ProtocolDeck.STANDARD.equals(reply.mode)?9:8;float header=0,row=getHeight()/(float)rows,col=getWidth()/14f;
             c.drawColor(0xFFF5F8FE);p.setTextAlign(Paint.Align.CENTER);p.setColor(0xFF647B98);p.setTextSize(Math.min(col*.68f,header*.85f));
             for(int y=0;y<8;y++){if(y%2==1){p.setColor(0xFFE3EDFA);c.drawRect(0,header+y*row,getWidth(),header+(y+1)*row,p);}p.setColor(y/2==1||y/2==3?0xFFE32636:0xFF39434B);p.setTextSize(row*.92f);c.drawText(new String[]{"♠","♥","♣","♦"}[y/2],col*.5f,header+(y+.83f)*row,p);
                 for(int x=0;x<13;x++)if(reply!=null&&reply.occupied(y,x)){
@@ -204,7 +204,18 @@ public final class HandOverlay implements AutoCloseable {
                     c.drawText(rank,col*(x+1.5f),header+(y+.5f)*row-(ink.top+ink.bottom)*.5f,p);
                     p.setTypeface(Typeface.DEFAULT);
                 }}
-            p.setColor(0xFF4387D9);p.setStrokeWidth(Math.max(1,dp(.6f)));for(int x=0;x<=14;x++)c.drawLine(x*col,header,x*col,getHeight(),p);for(int y=0;y<=8;y++)c.drawLine(0,header+y*row,getWidth(),header+y*row,p);
+            if(rows==9){
+                p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(Math.min(row*.72f,col*.85f));
+                p.setColor(0xFF39434B);c.drawText("王",col*.5f,row*8.78f,p);
+                for(int i=0;i<6;i++){
+                    boolean big=i<3;int copy=i%3;
+                    if(copy<(big?reply.bigJokers:reply.smallJokers)){
+                        p.setColor(big?0xFFE32636:0xFF39434B);c.drawText(big?"大":"小",col*(i+1.5f),row*8.78f,p);
+                    }
+                }
+                p.setTypeface(Typeface.DEFAULT);
+            }
+            p.setColor(0xFF4387D9);p.setStrokeWidth(Math.max(1,dp(.6f)));for(int x=0;x<=14;x++)c.drawLine(x*col,header,x*col,getHeight(),p);for(int y=0;y<=rows;y++)c.drawLine(0,header+y*row,getWidth(),header+y*row,p);
         }
     }
     public void togglePanel(){panel();}

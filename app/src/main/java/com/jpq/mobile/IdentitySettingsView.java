@@ -24,13 +24,19 @@ final class IdentitySettingsView extends LinearLayout {
         var prefs=context.getSharedPreferences("hand_upload",0);
         EditText tenant=field("租户 ID","同组设备相同",prefs.getString("tenant_id",""),InputType.TYPE_CLASS_NUMBER);
         EditText client=field("客户端 ID","每台设备不同",prefs.getString("client_id",""),InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        final String[] selectedMode={prefs.getString("game_mode",ProtocolDeck.STANDARD)};
+        Button mode=button("",true);
+        Runnable modeLabel=()->mode.setText("玩法："+(ProtocolDeck.TWO.equals(selectedMode[0])?"2王（大小王各1张）":ProtocolDeck.SIX.equals(selectedMode[0])?"6王（大小王各3张）":"普通无王")+" ▾");
+        modeLabel.run();mode.setContentDescription("选择玩法模式");
+        mode.setOnClickListener(v->{selectedMode[0]=ProtocolDeck.STANDARD.equals(selectedMode[0])?ProtocolDeck.TWO:ProtocolDeck.TWO.equals(selectedMode[0])?ProtocolDeck.SIX:ProtocolDeck.STANDARD;modeLabel.run();});
+        if(BuildConfig.PROTOCOL_MODE)addView(mode,new LayoutParams(-1,dp(36)));
         LinearLayout actions=new LinearLayout(context);actions.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
         Button cancel=button("取消",false);cancel.setOnClickListener(v->dismiss.run());
         Button save=button("保存",true);save.setOnClickListener(v->{
             try {
                 String tenantId=tenant.getText().toString().trim(),clientId=client.getText().toString().trim();
                 RoundSocket.url(BuildConfig.SERVER_URL,tenantId,clientId);
-                if(!prefs.edit().putString("tenant_id",tenantId).putString("client_id",clientId)
+                if(!prefs.edit().putString("tenant_id",tenantId).putString("client_id",clientId).putString("game_mode",selectedMode[0])
                         .remove("endpoint").remove("enabled").commit())throw new IOException("保存失败，请重试");
                 saved.run();dismiss.run();
             } catch(Exception error) {Toast.makeText(context,error.getMessage(),Toast.LENGTH_LONG).show();}

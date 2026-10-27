@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>问鼎十三水协议分析进展</title>
+<style>body{font:16px/1.7 system-ui;max-width:960px;margin:40px auto;padding:0 24px}code{background:#eef;padding:2px 5px}td,th{border:1px solid #ddd;padding:10px;text-align:left}table{border-collapse:collapse;width:100%}</style>
+<h1>问鼎十三水协议分析进展</h1><p>2026-10-12 · 分支 <code>codex/shisanshui-protocol</code> · 尚未完成真实发牌验证</p>
+<h2>已确认</h2><p>MuMu 中运行的包为 com.sgjt.huiyi，使用 Cocos2d-JS。分析对象取自当前安装 APK，同时检查了实际热更新脚本；没有修改原手机适配工作区。</p>
+<table><tr><th>证据</th><th>观察结果</th></tr>
+<tr><td>REA Android 包检查</td><td>存在 Cocos 原生库与受保护启动层。REA 原生分析引擎当前不可用，后续使用本机运行时只读函数检查。</td></tr>
+<tr><td>gm.shisanshui.SocketReader.onDeal</td><td>调用 DealResponse.deserializeBinary，返回 hand_cards、currentRound 等字段。</td></tr>
+<tr><td>gm.shisanshui.SocketListener.onDeal</td><td>先设置当前游戏局数，再调用 dealCard，说明该解析数据用于发牌显示。</td></tr>
+<tr><td>shisanshui.Command</td><td>DEAL=21、SETTLE_FOR_ROUND=29、RECONNECT=36；编号来自运行中的脚本定义，尚未独立核对完整网络帧。</td></tr>
+<tr><td>parseReconnect</td><td>包含当前局数及 myInfo.cards。正式接入须结合房间状态验证，不能直接将重连内容视为新发牌。</td></tr></table>
+<h2>当前验证范围</h2><p>已加载仅记录本机发牌数组、游戏局数和结束事件的诊断观察器，不发送数据、不自动点击或出牌。观察器包装原函数并保留原调用和返回值，支持恢复。语法检查及模拟环境下原函数调用、重复安装、恢复检查通过；这些不代表真实游戏兼容性已验证。</p>
+<h2>待验证</h2><ul><li>真实 13 张手牌与整数牌值、花色映射逐张比对。</li><li>连续多局、结束、换房间、断线重连、暂停和恢复。</li><li>区分游戏局数和记牌器服务端版本，建立跨局去重。</li><li>计时需从真实发牌事件到面板显示实测，目前没有耗时结论。</li><li>当前运行时访问依赖已具备 root 权限的模拟器，未证明普通未 root 手机可用。</li></ul>
+<h2>证据定位</h2><p>REA Evidence ID：ev_c1fd4c03eb5592a6e15c419620a3d6f8fef6f41e941937f49037cc00fb1f47b5。APK SHA-256：7b756bc7f7c85e454c306db6077684b2c6b81bc67285946190ecc44b58094f60。</p><p>本地运行时记录：build/rea/source.log、parser.log、local-deal.log。原始 APK、热更新资源和运行时日志留在忽略的 build 目录，不加入源码版本控制。</p></html>

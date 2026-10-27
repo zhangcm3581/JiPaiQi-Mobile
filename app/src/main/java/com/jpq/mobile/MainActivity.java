@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
             showSettings();
             return;
         }
+        if(BuildConfig.PROTOCOL_MODE && ProtocolService.current!=null){ProtocolService.current.expand();finish();return;}
         CaptureService service = CaptureService.current;
         if (service != null) {
             service.expandControls();
@@ -61,6 +62,7 @@ public final class MainActivity extends Activity {
     }
 
     private void projectionPrompt() {
+        if(BuildConfig.PROTOCOL_MODE){startForegroundService(new Intent(this,ProtocolService.class));finish();return;}
         MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
         Intent consent = Build.VERSION.SDK_INT >= 34
                 ? manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())

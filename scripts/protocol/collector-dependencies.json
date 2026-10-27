@@ -1,0 +1,12 @@
+[
+  {
+    "abi": "arm64-v8a",
+    "url": "https://github.com/frida/frida/releases/download/17.18.0/frida-inject-17.18.0-android-arm64.xz",
+    "sha256": "d8ce6fe18db97594d1c7a43be4f8fb405fc76f6a01470df34504bca6461328d0"
+  },
+  {
+    "abi": "x86_64",
+    "url": "https://github.com/frida/frida/releases/download/17.18.0/frida-inject-17.18.0-android-x86_64.xz",
+    "sha256": "ef29bc36df060e4028d105317f26b0f21c81f4b545d6f393dffb03cdd84b6c21"
+  }
+]

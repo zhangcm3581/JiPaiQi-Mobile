@@ -1,0 +1,11 @@
+Protocol modes build (0.6.0-modes.2)
+Branch: codex/shisanshui-six-jokers
+
+Before building a fresh checkout:
+  python3 scripts/protocol/fetch-collectors.py
+  ./gradlew testDebugUnitTest assembleDebug -PjpqServerUrl=http://139.199.12.90:8080
+
+Android SDK 35 and Java 17 required. Collector dependencies are Frida 17.18.0 official Android inject binaries, pinned by decompressed SHA-256 in collector-dependencies.json. They are intentionally not Git blobs (x86_64 exceeds GitHub's file limit). The script reuses already verified local files.
+
+Client modes: standard, two_jokers, six_jokers. Both joker modes need matching server support; no production deployment is performed by this build.
+Real-game participant opening-deal validation is still pending. Captured test fixtures contain card values only.

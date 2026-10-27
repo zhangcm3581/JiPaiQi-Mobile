@@ -39,6 +39,23 @@ public class RoundSocketRecoveryTest {
             assertTrue("暂停不再有可发送请求",session.outgoing().isEmpty());
         }finally{helper.on(worker,()->{if(socket[0]!=null)socket[0].close();});thread.quitSafely();server.shutdown();}
     }
+    @Test public void disconnectImmediatelyRedrawsHiddenProtocolPanel()throws Exception {
+        var remote=new java.util.concurrent.atomic.AtomicReference<WebSocket>();CountDownLatch connected=new CountDownLatch(1),hidden=new CountDownLatch(1);
+        MockWebServer server=new MockWebServer();server.enqueue(new MockResponse().withWebSocketUpgrade(new WebSocketListener(){
+            @Override public void onOpen(WebSocket ws,Response response){remote.set(ws);connected.countDown();}
+        }));server.start();HandlerThread thread=new HandlerThread("protocol-hide-disconnect");thread.start();Handler worker=new Handler(thread.getLooper());
+        ProtocolSession session=new ProtocolSession("900098","fault","",v->{});RoundSocket[] socket=new RoundSocket[1];HandOverlay[] overlay=new HandOverlay[1];
+        var instrumentation=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation();
+        instrumentation.runOnMainSync(()->overlay[0]=new HandOverlay(instrumentation.getTargetContext(),new HandOverlay.Actions(){public void toggle(){}public void settings(){}public void help(){}public void exit(){}}));
+        var helper=new RoundSocketDeviceTest();
+        try{
+            helper.on(worker,()->socket[0]=new RoundSocket(worker,session,server.url("/").toString(),()->new Handler(Looper.getMainLooper()).post(()->{overlay[0].update(true,session.result,session.status,session.panel);if(!session.panel)hidden.countDown();})));
+            assertTrue(connected.await(5,TimeUnit.SECONDS));Thread.sleep(200);helper.on(worker,()->session.panel=true);
+            instrumentation.runOnMainSync(()->overlay[0].update(true,null,"visible before failure",true));
+            java.lang.reflect.Field gridField=HandOverlay.class.getDeclaredField("grid");gridField.setAccessible(true);android.view.View grid=(android.view.View)gridField.get(overlay[0]);assertEquals(android.view.View.VISIBLE,grid.getVisibility());
+            java.lang.reflect.Field active=RoundSocket.class.getDeclaredField("socket");active.setAccessible(true);helper.on(worker,()->((WebSocket)active.get(socket[0])).cancel());assertTrue("disconnect must notify UI",hidden.await(5,TimeUnit.SECONDS));assertEquals(android.view.View.GONE,grid.getVisibility());
+        }finally{helper.on(worker,()->{if(socket[0]!=null)socket[0].close();});instrumentation.runOnMainSync(()->overlay[0].close());thread.quitSafely();server.shutdown();}
+    }
     private void check(String mode)throws Exception {
         AtomicInteger connections=new AtomicInteger();MockWebServer server=new MockWebServer();
         server.setDispatcher(new okhttp3.mockwebserver.Dispatcher(){@Override public MockResponse dispatch(RecordedRequest request){

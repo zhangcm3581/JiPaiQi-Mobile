@@ -3,16 +3,18 @@ android {
     namespace 'com.jpq.mobile'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.jpq.mobile'
+        applicationId 'com.jpq.mobile.protocol'
         minSdk 26
         targetSdk 35
-        ndk { abiFilters 'arm64-v8a' }
-        versionCode 32
-        versionName '0.4.25'
+        ndk { abiFilters 'arm64-v8a', 'x86_64' }
+        versionCode 40
+        versionName '0.6.0-modes.2'
+        buildConfigField 'boolean', 'PROTOCOL_MODE', 'true'
         buildConfigField 'String', 'SERVER_URL', groovy.json.JsonOutput.toJson(providers.gradleProperty('jpqServerUrl').getOrElse('http://139.199.12.90:8080'))
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions { coreLibraryDesugaringEnabled true; sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    packaging { jniLibs { useLegacyPackaging true; keepDebugSymbols += ["**/libjpq_inject.so"] } }
     buildFeatures { buildConfig true }
     buildTypes { release { minifyEnabled false } }
     testOptions { unitTests.returnDefaultValues = true }

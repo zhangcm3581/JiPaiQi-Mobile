@@ -4,3 +4,6 @@ local.properties
 *.jks
 *.keystore
 .DS_Store
+
+# Restored by scripts/protocol/fetch-collectors.py (pinned checksums).
+app/src/main/jniLibs/*/libjpq_inject.so

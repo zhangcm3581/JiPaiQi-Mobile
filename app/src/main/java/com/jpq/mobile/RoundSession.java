@@ -5,7 +5,10 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /** Single-worker state machine. Visual evidence never inherits a server version change. */
-public final class RoundSession {
+public final class RoundSession implements WireSession {
+    public String tenantId(){return tenant;}
+    public String clientId(){return client;}
+    public void networkStatus(String text){status=text;}
     public final String tenant,client;
     private final Consumer<String> save;
     private final LinkedHashMap<String,JSONObject> pending=new LinkedHashMap<>();
@@ -204,7 +207,7 @@ public final class RoundSession {
     }
     static HandReply serverResult(JSONObject p,int version)throws JSONException {
         if(p.getInt("remaining_count")!=13)throw new JSONException("结果数量错误");JSONArray cards=p.getJSONArray("cards"),out=new JSONArray();int total=0;
-        for(int i=0;i<cards.length();i++){JSONObject c=cards.getJSONObject(i);int suit=List.of("s","h","c","d").indexOf(c.getString("suit"));if(suit<0)throw new JSONException("结果花色错误");total+=c.getInt("count");out.put(new JSONObject().put("suit",HandSnapshots.SUITS.get(suit)).put("rank",c.getString("rank")).put("count",c.get("count")));}
-        if(total!=13)throw new JSONException("结果总数错误");return new HandReply(new JSONObject().put("schema","jpq.hand-result/1").put("round_id",version).put("event_id","ws-"+version).put("cards",out));
+        for(int i=0;i<cards.length();i++){JSONObject c=cards.getJSONObject(i);int suit=List.of("s","h","c","d").indexOf(c.getString("suit"));if(suit<0&&!"j".equals(c.getString("suit")))throw new JSONException("结果花色错误");total+=c.getInt("count");out.put(new JSONObject().put("suit",(suit<0?"j":HandSnapshots.SUITS.get(suit))).put("rank",c.getString("rank")).put("count",c.get("count")));}
+        if(total!=13)throw new JSONException("结果总数错误");return new HandReply(new JSONObject().put("schema","jpq.hand-result/1").put("round_id",version).put("event_id","ws-"+version).put("mode",p.optString("mode",ProtocolDeck.STANDARD)).put("cards",out));
     }
 }
